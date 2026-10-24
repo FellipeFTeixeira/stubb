@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - libs/*
+  - e2e
+savePrefix: ''
+engineStrict: true
+allowBuilds:
+  '@confluentinc/kafka-javascript': true
+  '@swc/core': true
+  esbuild: true
+minimumReleaseAgeExclude:
+  - react-hook-form@7.91.0
