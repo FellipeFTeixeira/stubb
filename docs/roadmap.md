@@ -4,11 +4,11 @@ Cada fase é entregue por uma ou mais execuções do `/sdd-pipeline`. Status: `p
 Detalhes de implementação de cada fase não são decididos aqui: viram Open Questions na pesquisa SDD da fase.
 A ordem das fases 2 e 3 pode ser trocada.
 
-**Fase atual:** 0 — Fundação
+**Fase atual:** 1 — Esqueleto
 
 | Fase | Nome | Status | Entregas | Aprendizado CQRS |
 |---|---|---|---|---|
-| 0 | Fundação | em andamento | CLAUDE.md, napkin, skill e subagentes SDD, roadmap, docs de arquitetura, ADRs, glossário | — |
+| 0 | Fundação | concluída | CLAUDE.md, README, napkin, skill e subagentes SDD, roadmap, docs de arquitetura, ADRs, glossário | — |
 | 1 | Esqueleto | pendente | Monorepo (`apps/write-service`, `apps/read-service`, `apps/projector`, `apps/web` React + Vite, `libs/contracts`); docker-compose (Nginx, PostgreSQL, Kafka KRaft, Debezium/Kafka Connect, MongoDB); lint e testes; **walking skeleton**: um evento fictício atravessa write → outbox → Debezium → Kafka → projector → MongoDB → read-service → web | Pipeline CQRS ponta a ponta funcionando antes de qualquer regra de negócio |
 | 2 | Catalog | pendente | Cadastro de evento, local, sessão, setores e lotes (produtor via usuário seed); read model `event_listing`; vitrine e página do evento no web | Primeiro fluxo real command → evento → projeção; read model desnormalizado |
 | 3 | Identity | pendente | Cadastro/login, CPF, JWT, papéis (cliente, produtor, portaria); validação no gateway/serviços | Contexto CRUD: nem tudo precisa de CQRS |
