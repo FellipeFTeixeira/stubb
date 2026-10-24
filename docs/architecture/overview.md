@@ -69,6 +69,7 @@ Módulos só se comunicam por commands, queries e eventos públicos; nunca acess
 7. Read-your-writes: command devolve versão; query aceita `min_version`.
 8. Expiração de hold por scheduler no write-service, varrendo holds vencidos no PostgreSQL (Kafka não tem mensagem atrasada).
 9. `Idempotency-Key` em commands do cliente e webhooks de pagamento.
+10. Módulos só se comunicam por commands, queries e eventos públicos; nunca acessam tabelas de outro contexto.
 
 ## Consistência eventual na UI
 
