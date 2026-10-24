@@ -1,0 +1,250 @@
+name: stubb
+
+volumes:
+  postgres-data:
+  mongo-data:
+  kafka-data:
+
+x-app-healthcheck: &app-healthcheck
+  start_period: 30s
+  interval: 10s
+  timeout: 5s
+  retries: 10
+
+services:
+  postgres:
+    image: postgres:18.6-trixie
+    command: ['postgres', '-c', 'wal_level=logical']
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-stubb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stubb}
+      POSTGRES_DB: ${POSTGRES_DB:-stubb}
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongo:
+    image: mongo:8.0.34
+    command: ['--replSet', 'rs0', '--bind_ip_all']
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  mongo-init:
+    image: mongo:8.0.34
+    command: ['mongosh', '--host', 'mongo:27017', '--quiet', '/scripts/init-replica-set.js']
+    volumes:
+      - ./mongo/init-replica-set.js:/scripts/init-replica-set.js:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: 'no'
+
+  kafka:
+    image: apache/kafka:4.3.2
+    hostname: kafka
+    ports:
+      - '9094:9094'
+    environment:
+      KAFKA_NODE_ID: '1'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: '1'
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: '0'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          '/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1',
+        ]
+      interval: 5s
+      timeout: 10s
+      start_period: 20s
+      retries: 30
+
+  kafka-init:
+    image: apache/kafka:4.3.2
+    entrypoint: ['/bin/bash', '/scripts/create-topics.sh']
+    volumes:
+      - ./kafka/create-topics.sh:/scripts/create-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: 'no'
+
+  connect:
+    image: quay.io/debezium/connect:3.7.0.Final
+    ports:
+      - '8083:8083'
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: stubb-connect
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_statuses
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
+      HEAP_OPTS: -Xms256m -Xmx512m
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:8083/connectors']
+      interval: 5s
+      timeout: 10s
+      start_period: 20s
+      retries: 30
+
+  connect-init:
+    image: curlimages/curl:8.23.0
+    entrypoint: ['/bin/sh', '/scripts/register-connector.sh']
+    environment:
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_USER: ${POSTGRES_USER:-stubb}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-stubb}
+      DB_NAME: ${POSTGRES_DB:-stubb}
+    volumes:
+      - ./debezium/register-connector.sh:/scripts/register-connector.sh:ro
+    depends_on:
+      connect:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    restart: 'no'
+
+  db-migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: write-service
+    command: ['node', 'dist/database/migrate.js']
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-stubb}:${POSTGRES_PASSWORD:-stubb}@postgres:5432/${POSTGRES_DB:-stubb}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  write-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: write-service
+    restart: unless-stopped
+    environment:
+      PORT: '3001'
+      DATABASE_URL: postgres://${POSTGRES_USER:-stubb}:${POSTGRES_PASSWORD:-stubb}@postgres:5432/${POSTGRES_DB:-stubb}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      connect-init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *app-healthcheck
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+
+  read-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: read-service
+    restart: unless-stopped
+    environment:
+      PORT: '3002'
+      MONGO_URL: mongodb://mongo:27017/?replicaSet=rs0
+      MONGO_DB: stubb_read
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *app-healthcheck
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+
+  projector:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: projector
+    restart: unless-stopped
+    environment:
+      PORT: '3003'
+      MONGO_URL: mongodb://mongo:27017/?replicaSet=rs0
+      MONGO_DB: stubb_read
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_GROUP_ID: projector
+      KAFKA_CLIENT_ID: projector
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      mongo-init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *app-healthcheck
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: gateway
+    ports:
+      - '8080:80'
+    depends_on:
+      write-service:
+        condition: service_healthy
+      read-service:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 10
