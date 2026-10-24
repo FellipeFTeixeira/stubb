@@ -20,6 +20,20 @@ Obrigatório. Etapas da implementação em ordem.
 | E1 | ... | ... | ... | — |
 | E2 | ... | ... | ... | E1 |
 
+### Trilhas e ondas
+
+A implementação é dividida em trilhas executadas por implementers em paralelo (no máximo 4 por onda). Uma onda só começa quando as trilhas de que depende estão concluídas. Se a feature for pequena demais para paralelizar, uma trilha única e o motivo.
+
+| Trilha | Onda | Etapas | Depende de | Arquivos donos (exclusivos) |
+|---|---|---|---|---|
+| ... | 1 | E1 | — | ... |
+
+Arquivos compartilhados (raiz, lockfile, Dockerfile, compose): dono único ou concluídos numa onda anterior. Duas trilhas nunca editam o mesmo arquivo. Stack Docker completa só na trilha de integração da última onda.
+
+### Interfaces entre trilhas
+
+Tudo que uma trilha expõe e outra consome, definido antes da implementação: exports de `libs/contracts`, rotas HTTP, variáveis de ambiente, coleções, tópicos, nomes de serviço e portas.
+
 ## Arquivos
 
 | Ação | Caminho | Propósito |

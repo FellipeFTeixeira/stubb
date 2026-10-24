@@ -20,6 +20,7 @@ Site de venda de ingressos (estilo Ticketmaster / Guichê Web) construído **par
 - Backend: TypeScript + Node.js + NestJS, usando `@nestjs/cqrs` (CommandBus, QueryBus, EventBus, Sagas). Os buses do pacote são in-memory: outbox, retry, checkpoint e idempotência são construídos por nós.
 - Frontend (`apps/web`): React + Vite + TypeScript, React Router, TanStack Query (estado do servidor), Zustand (estado do cliente), Tailwind + shadcn/ui, React Hook Form + Zod, Vitest + React Testing Library, Playwright. Dado vindo da API vive só no TanStack Query; nunca copiar para o Zustand. Detalhes no ADR 0008.
 - Write store: PostgreSQL. Read store: MongoDB. Broker: Kafka (KRaft). Propagação: Outbox + Debezium Outbox Event Router. Gateway: Nginx.
+- Docker obrigatório: o sistema inteiro (infra e apps) sobe com docker-compose, e os apps são empacotados com Dockerfile. Runtime: Docker Engine no Ubuntu do WSL2, acessado pelo CLI do Windows via contexto `wsl-engine`; o Docker Desktop não é usado.
 
 ```
 Cliente (web) ─► Nginx
@@ -59,11 +60,11 @@ Bounded contexts: Catalog, Inventory, Ordering, Ticketing, Identity. Ingressos: 
 
 Todo trabalho de implementação passa pelo pipeline, iniciado pelo usuário com `/sdd-pipeline <feature>`. "Fase" = fase do roadmap; "Etapa" = passo do pipeline.
 
-1. **Pesquisa**: subagente `sdd-planner` mapeia o que será feito e gera `SDD/RESEARCH/AAAA-MM-DD-{Nome}Research.md` com Open Questions.
+1. **Pesquisa**: subagente `sdd-planner` mapeia o que será feito e gera `SDD/RESEARCH/AAAA-MM-DD-{Nome}Research.md` com Open Questions. Pesquisa grande é dividida por área entre vários planners em paralelo e depois consolidada.
 2. **Gate 1, Open Questions**: perguntas levadas ao usuário até zerar. Sem OQ aberta não existe Spec.
-3. **Spec + Plan**: `sdd-planner` gera `SDD/SPEC/AAAA-MM-DD-{Nome}Spec.md` e `SDD/SPEC/AAAA-MM-DD-{Nome}Plan.md`. Todo Plan começa com um Roadmap da implementação.
+3. **Spec + Plan**: `sdd-planner` gera `SDD/SPEC/AAAA-MM-DD-{Nome}Spec.md` e `SDD/SPEC/AAAA-MM-DD-{Nome}Plan.md`. Todo Plan começa com um Roadmap da implementação, dividido em trilhas e ondas paralelizáveis.
 4. **Gate 2, Aprovação**: o usuário aprova Spec e Plan.
-5. **Implementação**: subagente `sdd-implementer` executa o Plan; com dúvida, para e pergunta.
+5. **Implementação**: **sempre que possível em paralelo**: até 4 `sdd-implementer` por onda, um por trilha, no mesmo working tree, cada um dono exclusivo dos seus arquivos. Memória compartilhada no Board `SDD/WORK/AAAA-MM-DD-{Nome}Board.md` mais mensagens diretas entre os agentes. Com dúvida, o implementer para e pergunta.
 6. **Verificação**: thread principal confere critérios de aceite, atualiza roadmap e napkin.
 
 Naming: `AAAA-MM-DD-{NomePascalCase}{Research|Spec|Plan}.md`, o mesmo `{Nome}` nos três arquivos. Modelos: `sdd-planner` = Opus 5.5 High; `sdd-implementer` = Sonnet 5.5 Medium. Detalhes na skill `.claude/skills/sdd-pipeline/SKILL.md`.

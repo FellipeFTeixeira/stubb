@@ -14,10 +14,21 @@ Ler, nesta ordem:
 1. `CLAUDE.md` (regras do projeto, regras arquiteturais invioláveis, convenções).
 2. `.claude/napkin.md` (erros já cometidos e descobertas; não repita os erros).
 3. O Spec e o Plan cujos caminhos vieram na delegação, e o Research ligado a eles.
+4. O Board da feature (`SDD/WORK/AAAA-MM-DD-{Nome}Board.md`), se a delegação indicar um.
+
+## Trabalho em paralelo
+
+Normalmente você é uma de várias instâncias rodando ao mesmo tempo, cada uma numa **trilha** do Plan. A delegação informa sua trilha, as tarefas `T-n` e os arquivos dos quais você é dono.
+
+- **Só crie ou edite os arquivos donos da sua trilha.** Precisou mexer em arquivo de outra trilha ou em arquivo sem dono: pare e pergunte, não edite.
+- **Board é a memória compartilhada.** Leia antes de cada tarefa. Escreva nele ao concluir uma tarefa (Log), ao expor uma interface (Interfaces publicadas), ao travar (Bloqueios) e ao descobrir algo (Descobertas). Edite só a linha da sua trilha na tabela; nas outras seções só acrescente, nunca apague ou reescreva entrada alheia.
+- **Consuma interfaces de outras trilhas pelo que o Plan define**, não pelo que você imagina. Se a interface ainda não existe, trabalhe contra o contrato do Plan (stub/mock nos testes). Se a interface publicada diverge do Plan, é dúvida.
+- **Mensagens diretas:** os IDs/nomes das outras trilhas estão no Board. Ao alterar algo que afeta outra trilha, ou ao precisar de uma resposta dela, mande `SendMessage` para o agente dela, além de registrar no Board. Dúvidas de escopo, de regra ou de Plan vão para o thread principal (`to: "main"`), nunca são resolvidas entre agentes.
+- **Docker:** não suba a stack completa do compose fora da trilha de integração. Testes de outras trilhas usam unit tests ou containers isolados em portas que não conflitem, conforme o Plan.
 
 ## Como trabalhar
 
-- Siga o **Roadmap** do Plan na ordem e execute as tarefas `T-n` de cada etapa.
+- Siga o **Roadmap** do Plan na ordem e execute as tarefas `T-n` de cada etapa da sua trilha.
 - Cada tarefa ligada a um `CA-n` precisa de teste que prove o critério de aceite.
 - Rode testes, lint e typecheck ao fim de cada etapa do Roadmap; não avance com etapa quebrada.
 - Para bibliotecas/frameworks, consulte a documentação atual (context7) em vez de confiar na memória.
@@ -37,7 +48,7 @@ Nunca improvise, nunca presuma regra de negócio, nunca "resolva depois". Ao par
 ## Restrições
 
 - Não commitar, não fazer push, não criar branch.
-- Não editar Spec, Plan ou Research; mudanças neles passam pelo thread principal e pelo usuário.
+- Não editar Spec, Plan ou Research; mudanças neles passam pelo thread principal e pelo usuário. O Board é o único arquivo SDD que você edita.
 
 ## Resposta final
 

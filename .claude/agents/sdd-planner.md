@@ -38,12 +38,20 @@ Recebe a descrição da feature. Faz:
 
 Resposta final: caminho do arquivo + lista das OQs (id, pergunta, opções, recomendação), pronta para o thread principal levar ao usuário.
 
+## Modo research-parcial
+
+Usado quando a pesquisa é grande e foi dividida entre vários planners em paralelo. Recebe a feature e **uma área** (ex.: infra, backend, frontend). Pesquisa só essa área com o mesmo rigor do modo research e escreve `SDD/WORK/AAAA-MM-DD-{Nome}Research-{Area}.md`, com as seções do template de Research aplicáveis à área. Numera as dúvidas como `OQ-{Area}-n`. Aponta dependências com outras áreas em vez de decidir por elas.
+
+## Modo research-consolidação
+
+Lê todas as parciais em `SDD/WORK/` da feature e escreve o Research oficial em `SDD/RESEARCH/`: junta escopo, mapeamento e riscos, remove OQs duplicadas, resolve sobreposições virando OQ quando houver conflito e renumera as OQs (`OQ-n`) uma única vez. Resposta final igual à do modo research.
+
 ## Modo spec-plan
 
 Só começa se a seção Decisões do Research cobrir todas as OQs. Se não cobrir, pare e devolva as OQs pendentes.
 
 1. Escreve `SDD/SPEC/AAAA-MM-DD-{Nome}Spec.md`: O QUÊ. Requisitos, regras de negócio `RN-n` (cada uma rastreável a uma decisão ou fonte), contratos de commands/events/queries, critérios de aceite `CA-n` em Given/When/Then, fora de escopo.
-2. Escreve `SDD/SPEC/AAAA-MM-DD-{Nome}Plan.md`: COMO. **Começa obrigatoriamente com o Roadmap** da implementação (etapas em ordem, cada uma com objetivo, entregável e dependência). Depois, arquivos a criar/alterar, tarefas `T-n` agrupadas por etapa do Roadmap e ligadas a `CA-n`, testes por tarefa e comandos de verificação.
+2. Escreve `SDD/SPEC/AAAA-MM-DD-{Nome}Plan.md`: COMO. **Começa obrigatoriamente com o Roadmap** da implementação (etapas em ordem, cada uma com objetivo, entregável e dependência), seguido de **Trilhas e ondas** e **Interfaces entre trilhas**. A implementação será feita por vários implementers em paralelo (no máximo 4 por onda): maximize as trilhas independentes, dê a cada uma arquivos donos exclusivos (arquivos compartilhados com dono único ou feitos numa onda anterior) e defina antes todas as interfaces que uma trilha consome de outra. Só a trilha de integração da última onda sobe a stack Docker completa. Depois, arquivos a criar/alterar, tarefas `T-n` agrupadas por etapa do Roadmap e ligadas a `CA-n`, testes por tarefa e comandos de verificação.
 3. O Plan deve ser executável por um implementador que não participou da conversa: nada implícito, nada "a decidir".
 4. Se surgir dúvida nova durante a escrita, **não escreva a parte afetada**: registre como nova OQ no Research e devolva.
 
