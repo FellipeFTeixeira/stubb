@@ -80,8 +80,9 @@ apps/
   projector/       consumers Kafka que montam os read models
   web/             frontend
 libs/
-  contracts/       schemas versionados dos eventos (contrato entre write e read)
-infra/             docker-compose, Nginx, conector Debezium
+  contracts/       schemas Zod versionados (eventos, requests e responses: contrato público)
+e2e/               E2E de API, replay do read model
+infra/             docker-compose (base e dev), Nginx, bootstrap do Kafka/MongoDB/Debezium, docker-up.ps1
 docs/              arquitetura, ADRs, glossário, roadmap
 SDD/               pesquisas, specs e planos de cada entrega
 ```
@@ -90,7 +91,83 @@ SDD/               pesquisas, specs e planos de cada entrega
 
 O projeto avança em fases, cada uma ligada a um conceito de CQRS: primeiro um walking skeleton ponta a ponta, depois catálogo, identidade, inventário com concorrência, compra com saga, emissão e check-in, pós-venda, Event Sourcing no contexto Ordering e, por fim, alta demanda. O status de cada fase está em [`docs/roadmap.md`](docs/roadmap.md).
 
-Ainda não existe código executável. As instruções para rodar o projeto entram neste README junto com a Fase 1.
+## Como rodar
+
+O código atual é o esqueleto da Fase 1: um módulo técnico `diagnostics`, com um agregado `Ping`, que atravessa o pipeline inteiro (command → PostgreSQL e outbox → Debezium → Kafka → projector → MongoDB → read-service → web). Ele não tem regra de negócio; serve para exercitar e testar o mecanismo. A página em `http://localhost:8080` cria pings, incrementa o contador e mostra, por ação, quanto tempo o read model levou para refletir a escrita.
+
+### Pré-requisitos
+
+- **Node 24.22.1** e **pnpm 12.15.0**, que o corepack instala a partir do `packageManager` (`corepack enable`). O `engineStrict` recusa versões menores de Node.
+- **Docker Engine com Compose.** O ambiente de referência é Windows 11 com o engine instalado no Ubuntu do WSL2, sem Docker Desktop, e com o CLI do Windows apontando para ele pelo contexto `wsl-engine` (`tcp://127.0.0.1:2375`, só em localhost). Nesse ambiente:
+  - o WSL desliga a distro quando nenhum processo do Windows está ligado a ela, e o `dockerd` cai junto. Antes de usar a stack, rode `powershell -NoProfile -ExecutionPolicy Bypass -File infra/scripts/docker-up.ps1`. O script mantém um `wsl.exe -d Ubuntu --exec sleep infinity` oculto, espera o engine responder e cria o symlink `/c -> /mnt/c` na distro, de que os bind mounts relativos do compose dependem;
+  - esses bind mounts também exigem a variável de usuário `COMPOSE_CONVERT_WINDOWS_PATHS=1` (`setx COMPOSE_CONVERT_WINDOWS_PATHS 1`; terminais já abertos não a enxergam). O script avisa se ela faltar;
+  - o `docker run -v` direto deve usar caminhos `/c/...`, não `$(pwd -W)`;
+  - o modo de rede do WSL é `mirrored` (`networkingMode=mirrored` em `%USERPROFILE%\.wslconfig`). No modo NAT, o stdout de `docker run` e `docker exec` chegava vazio ao CLI do Windows. No mirrored, uma porta publicada que conflite com um serviço do Windows não sobe, e o Windows reserva faixas dinâmicas de porta (confira com `netsh interface ipv4 show excludedportrange protocol=tcp`).
+
+  Num Docker convencional (Linux, macOS), o script e as duas variáveis não são necessários.
+- **Portas livres no host:** 8080, 8081, 8083, 9094, 27017 e 5433. O PostgreSQL da stack usa 5433 porque a 5432 costuma estar com um Postgres instalado no sistema.
+
+### Subir a stack
+
+```
+pnpm install
+pnpm stack:up
+```
+
+`stack:up` é `docker compose -f infra/compose.yaml up -d --build --wait`: constrói as imagens de produção e só termina quando tudo está saudável. A ordem de subida é controlada por healthchecks e por quatro serviços que rodam uma vez (`db-migrate`, `kafka-init`, `mongo-init` e `connect-init`, que registra o conector Debezium). O web fica em `http://localhost:8080`, servido pelo Nginx, que também roteia `/api/*` por método: GET e HEAD vão para o read-service e o resto para o write-service.
+
+| Porta | Serviço |
+|---|---|
+| 8080 | Nginx (web e API) |
+| 5433 | PostgreSQL (write store) |
+| 27017 | MongoDB (read store, replica set de um nó; conecte com `directConnection=true`) |
+| 9094 | Kafka (listener externo) |
+| 8083 | Kafka Connect (API REST do Debezium) |
+| 8081 | Kafbat UI, só no modo dev |
+
+`pnpm stack:down` remove os containers e os volumes anônimos que as imagens do Mongo, do Kafka e do Connect criam a cada subida, e preserva os volumes nomeados com os dados. Para apagar também os dados: `docker compose -f infra/compose.yaml -f infra/compose.dev.yaml down -v`.
+
+Com a stack de produção no ar, os containers usam cerca de 1,8 GiB de memória (Kafka Connect ~830 MiB, Kafka ~520 MiB e MongoDB ~230 MiB são os maiores; o heap das JVMs é limitado no compose).
+
+### Desenvolvimento
+
+```
+pnpm stack:dev
+```
+
+Usa `compose.yaml` mais `compose.dev.yaml` com `up --build --watch`: os apps rodam com `nest start --watch` e o Vite roda atrás do Nginx, com HMR pelo WebSocket. O Compose Watch copia `src/` para dentro dos containers (não há bind mount do código, porque o NTFS não propaga eventos de arquivo para o container) e refaz a imagem quando mudam manifests, lockfile ou `libs/contracts`. No modo dev os containers usam cerca de 3,4 GiB (cada app Nest em watch e o Vite passam de 300 MiB). A Kafbat UI, em `http://localhost:8081`, mostra o tópico `diagnostics.events` e o conector `stubb-outbox`.
+
+### Testes e qualidade
+
+| Comando | O que faz |
+|---|---|
+| `pnpm lint` | ESLint (type-checked) e Prettier |
+| `pnpm typecheck` | `tsc` em todos os pacotes |
+| `pnpm test` | testes unitários de todos os pacotes, sem Docker |
+| `pnpm test:e2e` | E2E de API (Vitest), replay e Playwright, no host, contra a stack de produção (`pnpm stack:up` antes) |
+| `pnpm replay` | reconstrói o read model a partir do Kafka |
+
+O CI roda `pnpm install --frozen-lockfile`, `lint`, `typecheck` e `test` em push e pull request; os E2E ficam de fora porque precisam da stack inteira.
+
+Os testes de integração de cada app (`pnpm --filter @stubb/<app> test:integration`) usam um banco isolado, não a stack:
+
+```
+# write-service
+docker run -d --rm --name stubb-it-postgres-write -e POSTGRES_USER=stubb -e POSTGRES_PASSWORD=stubb -e POSTGRES_DB=stubb -p 55432:5432 postgres:18.6-trixie
+
+# projector (MongoDB em replica set; MONGO_TEST_URL troca a URL)
+docker run -d --rm --name stubb-it-mongo-projector -p 58017:27017 mongo:8.0.34 --replSet rs0 --bind_ip_all
+docker exec stubb-it-mongo-projector mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]})"
+
+# read-service
+docker run -d --rm --name stubb-it-mongo-read -p 58018:27017 mongo:8.0.34
+```
+
+As portas 58017 e 58018 evitam as faixas dinâmicas reservadas pelo Windows (57017 e 57018 caíam nelas). Pare cada container com `docker stop <nome>` ao terminar.
+
+### O que o `pnpm replay` faz
+
+Para o projector, apaga as coleções `pings` e `processed_events` do MongoDB, reseta o offset do grupo `projector` para o início do tópico e sobe o projector de novo. Como o tópico tem retenção infinita e o documento é determinístico (`createdAt` e `updatedAt` vêm do `occurredAt` dos eventos), o read model volta idêntico. Um dos E2E prova isso comparando o documento antes e depois.
 
 ## Como o trabalho é feito
 

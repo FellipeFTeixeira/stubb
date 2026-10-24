@@ -42,9 +42,9 @@ Cliente (web React + Vite)
 | `apps/projector` | NestJS. Consumers Kafka que atualizam os read models |
 | `apps/web` | React + Vite |
 | `libs/contracts` | Schemas versionados dos eventos: contrato público entre write e read |
-| `infra/` | docker-compose, config do Nginx, config do conector Debezium |
+| `infra/` | docker-compose (infra e apps), config do Nginx, config do conector Debezium |
 
-A ferramenta de monorepo (pnpm workspaces, Nest CLI monorepo, Nx etc.) é decidida na pesquisa SDD da Fase 1.
+Ferramenta de monorepo: pnpm workspaces ([ADR 0009](adr/0009-ferramental-e-pipeline-da-fase-1.md)).
 
 ## Bounded contexts
 
