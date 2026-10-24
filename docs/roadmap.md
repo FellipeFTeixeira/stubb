@@ -4,12 +4,12 @@ Cada fase é entregue por uma ou mais execuções do `/sdd-pipeline`. Status: `p
 Detalhes de implementação de cada fase não são decididos aqui: viram Open Questions na pesquisa SDD da fase.
 A ordem das fases 2 e 3 pode ser trocada.
 
-**Fase atual:** 1 — Esqueleto
+**Fase atual:** 2 — Catalog (as fases 2 e 3 podem ser trocadas)
 
 | Fase | Nome | Status | Entregas | Aprendizado CQRS |
 |---|---|---|---|---|
 | 0 | Fundação | concluída | CLAUDE.md, README, napkin, skill e subagentes SDD, roadmap, docs de arquitetura, ADRs, glossário | — |
-| 1 | Esqueleto | pendente | Monorepo (`apps/write-service`, `apps/read-service`, `apps/projector`, `apps/web` React + Vite, `libs/contracts`); docker-compose (Nginx, PostgreSQL, Kafka KRaft, Debezium/Kafka Connect, MongoDB); lint e testes; **walking skeleton**: um evento fictício atravessa write → outbox → Debezium → Kafka → projector → MongoDB → read-service → web | Pipeline CQRS ponta a ponta funcionando antes de qualquer regra de negócio |
+| 1 | Esqueleto | concluída | Monorepo (`apps/write-service`, `apps/read-service`, `apps/projector`, `apps/web` React + Vite, `libs/contracts`); Dockerfile dos apps; docker-compose subindo infra (Nginx, PostgreSQL, Kafka KRaft, Debezium/Kafka Connect, MongoDB) e apps; lint e testes; **walking skeleton**: um evento fictício atravessa write → outbox → Debezium → Kafka → projector → MongoDB → read-service → web | Pipeline CQRS ponta a ponta funcionando antes de qualquer regra de negócio |
 | 2 | Catalog | pendente | Cadastro de evento, local, sessão, setores e lotes (produtor via usuário seed); read model `event_listing`; vitrine e página do evento no web | Primeiro fluxo real command → evento → projeção; read model desnormalizado |
 | 3 | Identity | pendente | Cadastro/login, CPF, JWT, papéis (cliente, produtor, portaria); validação no gateway/serviços | Contexto CRUD: nem tudo precisa de CQRS |
 | 4 | Inventory | pendente | Mapa de assentos + pista, `HoldSeats`, hold com TTL, expiração por scheduler, `session_seat_map` e `sector_availability`, SSE ao vivo, read-your-writes | Concorrência, optimistic locking, consistência eventual na UI |
@@ -25,4 +25,7 @@ A ordem das fases 2 e 3 pode ser trocada.
 Fase de setup, feita fora do pipeline (o pipeline ainda não existia).
 
 ### Fase 1 — Esqueleto
-- (pendente)
+- Research: [`SDD/RESEARCH/2026-10-24-SkeletonResearch.md`](../SDD/RESEARCH/2026-10-24-SkeletonResearch.md)
+- Spec: [`SDD/SPEC/2026-10-24-SkeletonSpec.md`](../SDD/SPEC/2026-10-24-SkeletonSpec.md)
+- Plan: [`SDD/SPEC/2026-10-24-SkeletonPlan.md`](../SDD/SPEC/2026-10-24-SkeletonPlan.md)
+- Board da implementação paralela: [`SDD/WORK/2026-10-24-SkeletonBoard.md`](../SDD/WORK/2026-10-24-SkeletonBoard.md)
