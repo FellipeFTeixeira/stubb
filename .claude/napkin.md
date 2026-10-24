@@ -11,6 +11,8 @@ Formato: `- [AAAA-MM-DD] <fato>. **Como aplicar:** <ação>`
 
 ## Descobertas
 
+- [2026-10-24] O usuário não quer boilerplate no repo do GitHub: o README deve ser completo e coeso, sem badges, seções genéricas ou enchimento. **Como aplicar:** escrever docs públicos com conteúdo real do projeto; se uma seção não tem o que dizer, ela não existe.
+
 - [2026-10-24] Ambiente é Windows 11, com PowerShell 5.1 como shell principal e Git Bash disponível. **Como aplicar:** não usar `&&` no PowerShell; escolher a sintaxe do shell usado.
 - [2026-10-24] O usuário escreveu "vitre" querendo dizer Vite (frontend React + Vite). **Como aplicar:** em caso de termo estranho, confirmar ou registrar a interpretação.
 - [2026-10-24] "Fase" se refere ao roadmap do projeto (`docs/roadmap.md`); "Etapa" se refere aos passos do pipeline SDD. **Como aplicar:** usar os termos de forma consistente em docs e conversas.
