@@ -46,7 +46,7 @@ services:
     image: mongo:8.0.34
     command: ['mongosh', '--host', 'mongo:27017', '--quiet', '/scripts/init-replica-set.js']
     volumes:
-      - ./mongo/init-replica-set.js:/scripts/init-replica-set.js:ro
+      - ./infra/mongo/init-replica-set.js:/scripts/init-replica-set.js:ro
     depends_on:
       mongo:
         condition: service_healthy
@@ -93,7 +93,7 @@ services:
     image: apache/kafka:4.3.2
     entrypoint: ['/bin/bash', '/scripts/create-topics.sh']
     volumes:
-      - ./kafka/create-topics.sh:/scripts/create-topics.sh:ro
+      - ./infra/kafka/create-topics.sh:/scripts/create-topics.sh:ro
     depends_on:
       kafka:
         condition: service_healthy
@@ -135,7 +135,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-stubb}
       DB_NAME: ${POSTGRES_DB:-stubb}
     volumes:
-      - ./debezium/register-connector.sh:/scripts/register-connector.sh:ro
+      - ./infra/debezium/register-connector.sh:/scripts/register-connector.sh:ro
     depends_on:
       connect:
         condition: service_healthy
@@ -145,7 +145,7 @@ services:
 
   db-migrate:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: write-service
     command: ['node', 'dist/database/migrate.js']
@@ -158,7 +158,7 @@ services:
 
   write-service:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: write-service
     restart: unless-stopped
@@ -182,7 +182,7 @@ services:
 
   read-service:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: read-service
     restart: unless-stopped
@@ -205,7 +205,7 @@ services:
 
   projector:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: projector
     restart: unless-stopped
@@ -233,7 +233,7 @@ services:
 
   gateway:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: gateway
     ports:

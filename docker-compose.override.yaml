@@ -21,14 +21,14 @@ services:
     develop:
       watch:
         - action: sync
-          path: ../apps/write-service/src
+          path: ./apps/write-service/src
           target: /usr/src/app/apps/write-service/src
         - action: rebuild
-          path: ../libs/contracts/src
+          path: ./libs/contracts/src
         - action: rebuild
-          path: ../apps/write-service/package.json
+          path: ./apps/write-service/package.json
         - action: rebuild
-          path: ../pnpm-lock.yaml
+          path: ./pnpm-lock.yaml
 
   read-service:
     build:
@@ -46,14 +46,14 @@ services:
     develop:
       watch:
         - action: sync
-          path: ../apps/read-service/src
+          path: ./apps/read-service/src
           target: /usr/src/app/apps/read-service/src
         - action: rebuild
-          path: ../libs/contracts/src
+          path: ./libs/contracts/src
         - action: rebuild
-          path: ../apps/read-service/package.json
+          path: ./apps/read-service/package.json
         - action: rebuild
-          path: ../pnpm-lock.yaml
+          path: ./pnpm-lock.yaml
 
   projector:
     build:
@@ -71,18 +71,18 @@ services:
     develop:
       watch:
         - action: sync
-          path: ../apps/projector/src
+          path: ./apps/projector/src
           target: /usr/src/app/apps/projector/src
         - action: rebuild
-          path: ../libs/contracts/src
+          path: ./libs/contracts/src
         - action: rebuild
-          path: ../apps/projector/package.json
+          path: ./apps/projector/package.json
         - action: rebuild
-          path: ../pnpm-lock.yaml
+          path: ./pnpm-lock.yaml
 
   web:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: dev
     command: ['pnpm', '--filter', '@stubb/web', 'dev']
@@ -98,16 +98,16 @@ services:
     develop:
       watch:
         - action: sync
-          path: ../apps/web/src
+          path: ./apps/web/src
           target: /usr/src/app/apps/web/src
         - action: rebuild
-          path: ../apps/web/package.json
+          path: ./apps/web/package.json
         - action: rebuild
-          path: ../apps/web/index.html
+          path: ./apps/web/index.html
         - action: rebuild
-          path: ../libs/contracts/src
+          path: ./libs/contracts/src
         - action: rebuild
-          path: ../pnpm-lock.yaml
+          path: ./pnpm-lock.yaml
 
   gateway:
     build:

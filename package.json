@@ -14,9 +14,9 @@
     "test": "pnpm --filter @stubb/contracts build && pnpm -r test",
     "test:e2e": "pnpm --filter @stubb/e2e test:e2e && pnpm --filter @stubb/web test:e2e",
     "replay": "pnpm --filter @stubb/e2e replay",
-    "stack:up": "docker compose -f infra/compose.yaml up -d --build --wait",
-    "stack:dev": "docker compose -f infra/compose.yaml -f infra/compose.dev.yaml up --build --watch",
-    "stack:down": "docker compose -f infra/compose.yaml -f infra/compose.dev.yaml rm -fsv && docker compose -f infra/compose.yaml -f infra/compose.dev.yaml down"
+    "stack:up": "docker compose -f docker-compose.yaml up -d --build --wait",
+    "stack:dev": "docker compose up --build --watch",
+    "stack:down": "docker compose rm -fsv && docker compose down"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

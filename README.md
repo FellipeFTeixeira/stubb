@@ -82,7 +82,9 @@ apps/
 libs/
   contracts/       schemas Zod versionados (eventos, requests e responses: contrato público)
 e2e/               E2E de API, replay do read model
-infra/             docker-compose (base e dev), Nginx, bootstrap do Kafka/MongoDB/Debezium, docker-up.ps1
+docker-compose.yaml          stack base (imagens de produção)
+docker-compose.override.yaml  sobreposição de dev, mesclada sozinha pelo `docker compose up`
+infra/             Nginx, bootstrap do Kafka/MongoDB/Debezium, docker-up.ps1
 docs/              arquitetura, ADRs, glossário, roadmap
 SDD/               pesquisas, specs e planos de cada entrega
 ```
@@ -114,7 +116,7 @@ pnpm install
 pnpm stack:up
 ```
 
-`stack:up` é `docker compose -f infra/compose.yaml up -d --build --wait`: constrói as imagens de produção e só termina quando tudo está saudável. A ordem de subida é controlada por healthchecks e por quatro serviços que rodam uma vez (`db-migrate`, `kafka-init`, `mongo-init` e `connect-init`, que registra o conector Debezium). O web fica em `http://127.0.0.1:8080`, servido pelo Nginx, que também roteia `/api/*` por método: GET e HEAD vão para o read-service e o resto para o write-service.
+`stack:up` é `docker compose -f docker-compose.yaml up -d --build --wait` (o `-f` explícito ignora o override de dev): constrói as imagens de produção e só termina quando tudo está saudável. A ordem de subida é controlada por healthchecks e por quatro serviços que rodam uma vez (`db-migrate`, `kafka-init`, `mongo-init` e `connect-init`, que registra o conector Debezium). O web fica em `http://127.0.0.1:8080`, servido pelo Nginx, que também roteia `/api/*` por método: GET e HEAD vão para o read-service e o resto para o write-service.
 
 | Porta | Serviço |
 |---|---|
@@ -127,7 +129,7 @@ pnpm stack:up
 
 **Acesse por `127.0.0.1`, não por `localhost`.** No Windows com o WSL em modo `mirrored`, `localhost` resolve primeiro para `::1` (IPv6), onde as portas publicadas pelo engine não respondem: o navegador fica esperando até estourar o tempo, às vezes de forma intermitente, e parece que a stack não subiu. Com `127.0.0.1` todas as portas da tabela abrem. Vale também para clientes SQL e para o MongoDB Compass (`127.0.0.1:5433` e `127.0.0.1:27017`, este com `directConnection=true`). Os clientes do repositório que rodam no host seguem usando `localhost`, e o cliente Kafka dos testes E2E força IPv4. Se a página não abrir, confira antes se há containers com `docker ps` e se o engine está de pé com `infra/scripts/docker-up.ps1`.
 
-`pnpm stack:down` remove os containers e os volumes anônimos que as imagens do Mongo, do Kafka e do Connect criam a cada subida, e preserva os volumes nomeados com os dados. Para apagar também os dados: `docker compose -f infra/compose.yaml -f infra/compose.dev.yaml down -v`.
+`pnpm stack:down` remove os containers e os volumes anônimos que as imagens do Mongo, do Kafka e do Connect criam a cada subida, e preserva os volumes nomeados com os dados. Para apagar também os dados: `docker compose down -v`.
 
 Com a stack de produção no ar, os containers usam cerca de 1,8 GiB de memória (Kafka Connect ~830 MiB, Kafka ~520 MiB e MongoDB ~230 MiB são os maiores; o heap das JVMs é limitado no compose).
 
@@ -137,7 +139,7 @@ Com a stack de produção no ar, os containers usam cerca de 1,8 GiB de memória
 pnpm stack:dev
 ```
 
-Usa `compose.yaml` mais `compose.dev.yaml` com `up --build --watch`: os apps rodam com `nest start --watch` e o Vite roda atrás do Nginx, com HMR pelo WebSocket. O Compose Watch copia `src/` para dentro dos containers (não há bind mount do código, porque o NTFS não propaga eventos de arquivo para o container) e refaz a imagem quando mudam manifests, lockfile ou `libs/contracts`. No modo dev os containers usam cerca de 3,4 GiB (cada app Nest em watch e o Vite passam de 300 MiB). A Kafbat UI, em `http://127.0.0.1:8081`, mostra o tópico `diagnostics.events` e o conector `stubb-outbox`.
+Usa `docker-compose.yaml` mais `docker-compose.override.yaml` (o Compose mescla os dois sozinho, então `docker compose up` já sobe o dev) com `up --build --watch`: os apps rodam com `nest start --watch` e o Vite roda atrás do Nginx, com HMR pelo WebSocket. O Compose Watch copia `src/` para dentro dos containers (não há bind mount do código, porque o NTFS não propaga eventos de arquivo para o container) e refaz a imagem quando mudam manifests, lockfile ou `libs/contracts`. No modo dev os containers usam cerca de 3,4 GiB (cada app Nest em watch e o Vite passam de 300 MiB). A Kafbat UI, em `http://127.0.0.1:8081`, mostra o tópico `diagnostics.events` e o conector `stubb-outbox`.
 
 ### Testes e qualidade
 
