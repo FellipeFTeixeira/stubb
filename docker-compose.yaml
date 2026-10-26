@@ -7,6 +7,7 @@ volumes:
 
 x-app-healthcheck: &app-healthcheck
   start_period: 30s
+  start_interval: 1s
   interval: 10s
   timeout: 5s
   retries: 10
@@ -26,6 +27,8 @@ services:
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
+      start_period: 20s
+      start_interval: 1s
       timeout: 5s
       retries: 20
 
@@ -39,6 +42,8 @@ services:
     healthcheck:
       test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
       interval: 5s
+      start_period: 20s
+      start_interval: 1s
       timeout: 10s
       retries: 20
 
@@ -79,12 +84,10 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          '/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1',
-        ]
+      # Os listeners só abrem depois que o broker está RUNNING; evita subir uma JVM por tick (5-8 s).
+      test: ['CMD-SHELL', 'nc -z localhost 9092']
       interval: 5s
+      start_interval: 1s
       timeout: 10s
       start_period: 20s
       retries: 30
@@ -113,14 +116,28 @@ services:
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
       HEAP_OPTS: -Xms256m -Xmx512m
+      # A imagem traz 14 conectores e o scan de plugins levava ~45 s; só o Postgres é usado.
+      # plugin.path precisa apontar para a pasta PAI dos plugins, então expomos só o do Postgres.
+      CONNECT_PLUGIN_PATH: /tmp/plugins
+      # Só ServiceLoader: dispensa o scan por reflexão (~9 s), os plugins do Debezium têm manifesto.
+      CONNECT_PLUGIN_DISCOVERY: service_load
+    entrypoint:
+      [
+        '/bin/bash',
+        '-c',
+        'mkdir -p /tmp/plugins && ln -sfn /kafka/connect/debezium-connector-postgres /tmp/plugins/debezium-connector-postgres && exec /docker-entrypoint.sh "$$@"',
+        '--',
+      ]
+    command: ['start']
     depends_on:
-      kafka-init:
-        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:8083/connectors']
       interval: 5s
+      start_interval: 1s
       timeout: 10s
       start_period: 20s
       retries: 30
@@ -140,6 +157,8 @@ services:
       connect:
         condition: service_healthy
       db-migrate:
+        condition: service_completed_successfully
+      kafka-init:
         condition: service_completed_successfully
     restart: 'no'
 
@@ -246,5 +265,7 @@ services:
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s
+      start_period: 20s
+      start_interval: 1s
       timeout: 5s
       retries: 10
