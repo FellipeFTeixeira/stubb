@@ -1094,9 +1094,143 @@ Levar depois dos blocos N. As OQ-63, 65, 72, 73, 74 e 75 têm recomendação ób
 - **Opções:** A) sem limite, com "aguardando projeção" visível (`aria-live`); B) limite no cliente (valor a definir; ex.: 10 s ou 30 s); depois, "Salvo. Os dados podem demorar a aparecer." com botão "Atualizar", e o polling para; C) navegar na hora para a tela do item e mostrar aviso enquanto a versão não chega.
 - **Recomendação:** B, com o valor definido pelo usuário. Mostra que o command foi aceito (a verdade está no write) mesmo quando a leitura atrasa (`overview.md:11`).
 
+### Surgidas na escrita da Spec e do Plan (2026-10-26)
+
+### OQ-99 [negócio] Valores do seed de demonstração que a OQ-8 não fixou
+- **Origem:** escrita da Spec/Plan (planner, modo spec-plan). Afeta só RN-48, CA-54 e a T-52 do Plan.
+- **Contexto:** a OQ-8 aprovada define locais, plantas, eventos, sessões, setores e lotes do seed, mas não fixa valores que os commands exigem (todos são obrigatórios ou precisam de hora): (a) a **descrição** dos quatro eventos (obrigatória, 1 a 5.000 caracteres, OQ-22); (b) a **hora** das datas dadas só como dia: "fim em D+15" (Hamlet, 1º lote da Plateia), "fim em D+20" e "fim em D+40" (Horizonte, 1º e 2º lotes da Pista) e "vendas a partir de D+10" (Riso Solto, Manaus); (c) o **início das vendas** (`salesStartsAt`, obrigatório, OQ-41) de "Horizonte Rock Festival" e de "Bolhas de Sabão", que a tabela não cita (Hamlet e Riso Solto em São Paulo dizem "a partir do momento do seed"); (d) o **nome dos lotes** de Riso Solto em Manaus ("Pista R$ 60,00 e Mezanino R$ 90,00", sem nome; o nome é obrigatório, OQ-34); (e) **em que fuso se conta o dia `D`** (dia da execução).
+- **Opções:**
+  - (a) A) uma frase fictícia curta por evento, escrita pelo planner no Plan; B) o usuário escreve as quatro descrições.
+  - (b) A) 00:00 do dia indicado, no fuso do local; B) 23:59 do dia indicado; C) mesma hora da sessão.
+  - (c) A) "a partir do momento do seed", como Hamlet; B) outra data.
+  - (d) A) "Lote único" nos dois setores, como os demais setores de lote único do seed; B) outro nome.
+  - (e) A) `D` = data de hoje no fuso de cada local; B) data de hoje em `America/Sao_Paulo` para todos.
+- **Recomendação:** (a) A, com estas frases (fictícias, sem sugerir evento real): Hamlet: "Montagem da tragédia de Shakespeare em temporada no Teatro Aurora."; Horizonte Rock Festival: "Dois dias de rock com bandas nacionais na Arena Horizonte."; Riso Solto: a turnê: "Espetáculo de stand-up em turnê por São Paulo e Manaus."; Bolhas de Sabão: "Espetáculo infantil com música, bolhas e muita brincadeira." (b) A. (c) A. (d) A. (e) A. São as opções que menos acrescentam regra e mantêm o seed coerente com o resto da OQ-8.
+
 ## Decisões
 
 Preenchida pelo thread principal com as respostas do usuário.
+
+- OQ-1 → A) back-office mínimo no web: cadastrar local e planta, criar evento, sessões, setores e lotes, publicar, listar os próprios eventos (com rascunhos).
+- OQ-2 → C) criação + publicação (rascunho fica fora da vitrine) + edição dos dados descritivos e remoção de sessão/setor/lote enquanto rascunho; edição pós-publicação decidida na OQ-50.
+- OQ-3 → A) telas separadas por entidade ("Locais", "Meus eventos", página de gestão do evento com sessões, setores e lotes); um submit = um command, com espera pela projeção.
+- OQ-4 → A) o produtor lista os próprios eventos (com rascunhos) e locais; endpoints públicos sem auth até a Fase 3, risco aceito e registrado.
+
+O usuário aprovou integralmente ("aprovo tudo", 2026-10-26) as propostas de negócio e técnica. Os dois arquivos abaixo são **anexos normativos**: trazem os valores completos, tabelas e justificativas de cada decisão resumida aqui. Onde houve conflito entre eles, a proposta de negócio prevalece e a técnica foi realinhada (revisão 2).
+
+- Anexo de negócio: `SDD/WORK/2026-10-26-CatalogProposta-Negocio.md` (OQ-5 a OQ-59).
+- Anexo técnico: `SDD/WORK/2026-10-26-CatalogProposta-Tecnico.md` (revisão 2, OQ-60 a OQ-97).
+
+### Negócio (OQ-5 a OQ-59)
+
+- OQ-5 → A. Um produtor seed, identificado só por um UUID fixo, sem nome nem outros dados.
+- OQ-6 → A. Todo command é executado em nome do produtor seed; `organizerId` é gravado no local e no evento; as leituras do produtor filtram por `organizerId` do seed. A validação de posse entra na Fase 3, documentada como limitação conhecida.
+- OQ-7 → B. Não aparece na Fase 2.
+- OQ-8 → A. Um script cria, **via commands pela API** (OQ-76), o conjunto abaixo. Datas relativas ao momento da execução (`D` = dia em que o script roda), porque sessão precisa estar no futuro (OQ-30). Horários no fuso do local. Sem imagem (a vitrine usa o placeholder por categoria; nenhuma dependência de host externo).
+- OQ-9 → A. Local é cadastro próprio, criado uma vez e escolhido ao agendar cada sessão.
+- OQ-10 → A. Cada produtor cadastra os próprios locais (`Venue` com `organizerId`); a lista de locais da área do produtor mostra só os dele. Nas páginas públicas, nome e endereço do local aparecem como parte do evento.
+- OQ-11 → A, com o fuso da OQ-13. Só locais no Brasil.
+- OQ-12 → B. Não existe capacidade do local; a capacidade total é a soma dos setores, derivada.
+- OQ-13 → B, com uma regra extra: a sessão **copia o fuso do local** quando é agendada (como copia a planta, OQ-16).
+- OQ-14 → A, com cópia (OQ-16 = A). A planta (setores-modelo) fica no local; ao agendar uma sessão, ela recebe uma cópia de todos os setores da planta, com IDs novos; os lotes pertencem ao setor da sessão.
+- OQ-15 → variante de B, em termos de presença em vez de flag. A sessão nasce com cópia de **todos** os setores da planta. Enquanto a sessão está em Rascunho, o produtor pode **remover** um setor da sessão (os lotes dele vão junto) e **adicionar** à sessão um setor da planta que não esteja nela (nova cópia, ID novo). Capacidade e layout da cópia não são editáveis. Depois de publicada, nada muda (OQ-50).
+- OQ-16 → A. A sessão copia a planta quando é agendada (e cada setor, quando adicionado à sessão). Mudanças posteriores na planta (adicionar ou remover setor-modelo) não afetam sessões existentes.
+- OQ-17 → A, sem descrição nem atributos visuais. Sem edição de setor-modelo: para corrigir, remove e adiciona de novo (a cópia isola as sessões).
+- OQ-18 → A, com a grade simples da OQ-19.
+- OQ-19 → A. Lista ordenada de filas; cada fila tem rótulo e quantidade de assentos, numerados de 1 a N. Assento = (fila, número).
+- OQ-20 → A. Fora da Fase 2, registrado como lacuna consciente.
+- OQ-21 → A, com valores menores que os sugeridos no Research, para manter pequeno o agregado `Event` (carregado inteiro a cada command) e o documento `session_seat_map` da Fase 4 (limite de 16 MB).
+- OQ-22 → A, com **todos os campos obrigatórios já na criação** (exceto imagem). O rascunho nunca fica com campo obrigatório vazio, e a publicação não precisa checar campos do evento.
+- OQ-23 → A. Lista fixa, com código em inglês no contrato e rótulo em PT-BR no web.
+- OQ-24 → A. Obrigatória, com as faixas oficiais; nenhum controle de idade na compra.
+- OQ-25 → A. URL externa opcional; sem upload.
+- OQ-26 → A. Sim; toda sessão tem local.
+- OQ-27 → A. Fora. Cada dia de festival é uma sessão vendida separadamente.
+- OQ-28 → A. Sim; o local é da sessão.
+- OQ-29 → A, mais o início das vendas da OQ-41. Campos de tempo da sessão: `startsAt` (início) e `salesStartsAt` (início das vendas). Sem término e sem abertura dos portões.
+- OQ-30 → A. Ao agendar, `startsAt` precisa ser posterior ao "agora" do write-service; sem limite máximo. A mesma checagem se repete ao publicar (OQ-44), porque a sessão pode ficar em rascunho até a data passar.
+- OQ-31 → A, com até **50** sessões por evento (em vez de 100). Rascunho pode ter zero sessões. Duas sessões do mesmo evento não podem ter o mesmo local e o mesmo `startsAt`. Conflito de agenda do local com outros eventos não é validado.
+- OQ-32 → A. Ao setor de uma sessão; cada sessão tem os próprios lotes. "Copiar lotes de outra sessão" fica fora da Fase 2 (o seed faz por script).
+- OQ-33 → A (sequencial), com D explícita: na Fase 2 só a virada por data tem efeito; a virada por quantidade passa a valer quando houver venda (Fase 5).
+- OQ-34 → variante de A. Nenhum lote tem data de início própria (o início vem da sessão e do lote anterior, OQ-33).
+- OQ-35 → A. Não; no máximo um lote vigente por setor da sessão (decorre da regra sequencial).
+- OQ-36 → variante entre A e C. `quantity` é **teto do próprio lote** e é opcional em qualquer lote; a soma das quantidades informadas no setor não pode passar da capacidade do setor; a capacidade do setor continua sendo o teto real (controlado pelo Inventory na Fase 4).
+- OQ-37 → A, na forma que decorre do teto por lote: o que não foi vendido num lote encerrado por data continua na capacidade do setor e é vendido pelos lotes seguintes, ao preço deles. O teto do lote seguinte não aumenta.
+- OQ-38 → A. Sim; o lote conta assentos vendidos no setor, qualquer que seja a posição.
+- OQ-39 → A. Só BRL; inteiro em centavos; o preço cadastrado é o da **inteira**, sem taxa.
+- OQ-40 → A. Não validar.
+- OQ-41 → C, com o início das vendas **na sessão** (não no 1º lote): `salesStartsAt` obrigatório, anterior a `startsAt`, podendo estar no passado (significa "assim que publicar"). Vendas abertas = sessão publicada **e** `salesStartsAt` ≤ agora < `startsAt` **e** existe lote vigente. As vendas terminam no início da sessão; nenhum `endsAt` de lote pode passar de `startsAt`.
+- OQ-42 → A. Totalmente fora; nenhum campo agora.
+- OQ-43 → A, ajustada à publicação por sessão (OQ-51 = B):
+- OQ-44 → A, aplicada à **sessão**. Para publicar uma sessão:
+- OQ-45 → A. Só imediata.
+- OQ-46 → A. Não; nem evento nem sessão voltam a rascunho.
+- OQ-47 → C. Não; entra na Fase 7.
+- OQ-48 → A. Não; fica com a Fase 7.
+- OQ-49 → A, ajustada à OQ-2 C e à publicação por sessão:
+- OQ-50 → variante mais restrita que B. **Sessão publicada fica congelada**: não muda data, início das vendas, local, setores nem lotes; não é removida.
+- OQ-51 → B. A sessão tem estado próprio (Rascunho/Publicada) e é publicada separadamente, com os requisitos da OQ-44. Com a OQ-43 proposta, isso vale para **todas** as sessões, inclusive as do evento ainda em rascunho.
+- OQ-52 → A. Um card por evento; a página do evento lista as sessões.
+- OQ-53 → - **Proposta:**
+- OQ-54 → B. Imagem (ou placeholder por categoria), título, rótulo da categoria, nome do local + cidade/UF da **próxima sessão** publicada não iniciada, data e hora dessa sessão (no fuso dela), "+N datas" quando houver outras sessões futuras publicadas, e o preço da OQ-55.
+- OQ-55 → A. "A partir de R$ X", com X = menor `priceCents` entre os lotes **vigentes agora**, em todos os setores das sessões publicadas não iniciadas com vendas abertas. Sem lote vigente: "Vendas a partir de dd/mm" (o menor `salesStartsAt` futuro entre essas sessões) ou, se as vendas já acabaram em todas, "Vendas encerradas". Sem taxa (Fase 5).
+- OQ-56 → consolidada do Research. Página pública: por sessão publicada (ordem de `startsAt`) e por setor (ordem da planta), o tipo do setor ("Assento marcado" ou "Pista") e **só o lote vigente** (nome e preço); sem lote vigente, "Vendas a partir de dd/mm HH:mm" ou "Vendas encerradas". Sem capacidade nem disponibilidade (Fase 4). Área do produtor: a sequência completa de lotes de cada setor, com selo derivado (Encerrado, Vigente, Em breve), mais o status da sessão (Rascunho, Publicada).
+- OQ-57 → - **Proposta:**
+- OQ-58 → A na API (`page`, `pageSize`; resposta com `items`, `page`, `pageSize`, `total`) + y na UI ("Carregar mais" com `useInfiniteQuery`).
+- OQ-59 → A. Sem botão.
+
+### Técnicas (OQ-60 a OQ-97)
+
+- OQ-60 → Dois agregados: `Venue` (local + planta) e Evento com sessões, setores da sessão e lotes como filhas, versão única na raiz.
+- OQ-61 → 14 commands por intenção, um evento cada, com estado completo da entidade: `RegisterVenue`, `UpdateVenueDetails`, `AddVenueSector`, `RemoveVenueSector`, `CreateEvent`, `UpdateEventDetails`, `DiscardEvent`, `ScheduleSession`, `RemoveSession`, `AddSessionSector`, `RemoveSessionSector`, `AddBatch`, `RemoveBatch`, `PublishSession`; `SessionScheduled` traz `salesStartsAt` e `timeZone` e não traz `active`; `SessionPublished` traz o retrato completo da sessão.
+- OQ-62 → Lookup em `venues` + merge comutativo com guarda de `venueVersion`; edição de dados do local propaga por fan-out (exceto fuso); planta não propaga; sem lápide de local.
+- OQ-63 → Versão só na raiz, bump da raiz em toda alteração de filha, um evento por command; a primeira `SessionPublished` também torna o evento Publicado, sem `EventPublished`.
+- OQ-64 → Só `UpdateEventDetails` e `UpdateVenueDetails` exigem `expectedVersion` no corpo (409 se divergir); os demais usam a versão lida no servidor.
+- OQ-65 → `EntityCommandAccepted` `{ id, version, entityId }` em `ScheduleSession`, `AddSessionSector`, `AddBatch` e `AddVenueSector`.
+- OQ-66 → `event_listing` (eventos com sessão publicada) + `event_detail` (árvore completa), gravados juntos; o resumo é derivado do detalhe.
+- OQ-67 → Coleção `aggregate_versions` como gate de sequência por agregado, mais `processed_events` para dedupe por `eventId`.
+- OQ-68 → `min_version` compara com a versão do Evento nas leituras do evento e do `Venue` na leitura do local; listas sem `min_version`; lápide técnica só em `EventDiscarded`.
+- OQ-69 → Read models `event_listing`, `event_detail` (público e gestão), `organizer_events` e `venues` (sem paginação, também lookup), leituras do produtor sob `/api/catalog/organizer/`.
+- OQ-70 → Lote vigente, vendas abertas, encerrado, preço "a partir de", visibilidade e ordenação calculados no read-service com o `now` do servidor, `asOf` na view, ordenação por agregação.
+- OQ-71 → `$text` em português só no título do `event_listing`, via `GET` com `q`.
+- OQ-72 → Seis tabelas `catalog_*`, CASCADE dentro do agregado, RESTRICT sessão → local, uniques como última defesa, layout em `jsonb`, limites de negócio nos schemas e no agregado.
+- OQ-73 → `SEED_ORGANIZER_ID` (default `0193a4f0-0000-7000-8000-000000000001`) em write-service e read-service, provider `CurrentOrganizer`, web não envia dono.
+- OQ-74 → Campo texto com "R$", conversão para centavos sobre a string, faixa 1 a 10.000.000.
+- OQ-75 → `datetime-local` em `startsAt`, `salesStartsAt` e `endsAt`, convertido no fuso do local/sessão por módulo puro com `Intl` em `libs/contracts`; API só com instantes.
+- OQ-76 → Script `pnpm seed:catalog` pela API com `Idempotency-Key` e `min_version`, conteúdo da OQ-8 de negócio, checagem prévia por título.
+- OQ-77 → `SharedModule` importado explicitamente e `OutboxWriter` genérico com mapper por contexto.
+- OQ-78 → Tópico `catalog.events` com 3 partições e retenção infinita no `create-topics.sh`.
+- OQ-79 → Arquivos `catalog/*` em `libs/contracts`, agregado `CatalogEvent`, união `CatalogDomainEventSchema`, `CommandAccepted` em `http/`, normalização de cidade e módulo de fuso compartilhados.
+- OQ-80 → Rotas por intenção sob `/api/catalog/` (mapa na OQ-80), `PATCH` para edição, `DELETE` para remoção, 202 em todos, `Idempotency-Key` obrigatória.
+- OQ-81 → UUID nas URLs da API e do web.
+- OQ-82 → 422 com `code` estável para regra de negócio, 404 para recurso do caminho, 409 só para versão, `code` em todos os erros e schemas em `libs/contracts`.
+- OQ-83 → Um grupo `projector` com registro tópico → schema e handlers.
+- OQ-84 → Ping migrado para o mecanismo genérico, com `pnpm replay` uma vez depois da migração.
+- OQ-85 → Replay total com lista única de coleções e reset `--all-topics`.
+- OQ-86 → Coleções e índices no `mongo-init` (texto, categoria, `cityKey`, `startsAt`, `venueId`, organizador), testes criam os que usam.
+- OQ-87 → E2E de API completo, replay comparando os quatro read models e teste de integração de comutatividade.
+- OQ-88 → Vitrine em `/`, diagnóstico em `/diagnostico`, layout raiz com header e 404.
+- OQ-89 → URLs do web em PT-BR.
+- OQ-90 → Só TanStack Query para dados; router sem loaders.
+- OQ-91 → Cliente HTTP, retry e read-your-writes extraídos para módulos compartilhados, diagnóstico migrado sem mudar comportamento.
+- OQ-92 → Uma `Idempotency-Key` por intenção, trocada no sucesso ou quando o payload muda.
+- OQ-93 → Componentes shadcn instalados de uma vez numa trilha (sem `pagination`), sucesso inline com `aria-live`.
+- OQ-94 → `vi.stubGlobal('fetch')` com helper `createFakeApi`.
+- OQ-95 → Dados de teste próprios com nomes únicos, sem contagem total, host `127.0.0.1` com override.
+- OQ-96 → Seletores por papel e label, `data-testid` só sem papel, checklist de acessibilidade no Plan.
+- OQ-97 → Limite de 10 s de espera pela projeção, depois "Salvo. Os dados podem demorar a aparecer." com "Atualizar"; diagnóstico sem limite.
+
+### Surgidas no realinhamento técnico
+
+- OQ-98 → A) o corpo de `ScheduleSession` inclui o `timeZone` usado na conversão das datas; se diferir do fuso atual do local no PostgreSQL, o command é rejeitado com 422 `VENUE_TIME_ZONE_CHANGED` e o web recarrega o local e pede para conferir os horários (detalhes no anexo técnico, seção "Open Questions novas").
+
+### Surgidas na escrita da Spec e do Plan
+
+- OQ-99 → (a) A) uma frase fictícia por evento, a que o planner propôs no bloco da OQ-99; (b) A) datas dadas só como dia valem 00:00 no fuso do local; (c) A) início das vendas de "Horizonte Rock Festival" e "Bolhas de Sabão" é o momento do seed, como no Hamlet; (d) A) os setores de lote único de "Riso Solto" em Manaus se chamam "Lote único"; (e) A) o dia `D` é a data de hoje no fuso de cada local.
+
+### Situação do Gate 1
+
+Todas as OQs (OQ-1 a OQ-99) têm decisão registrada. Nenhuma OQ aberta.
 
 ## Fontes externas
 
