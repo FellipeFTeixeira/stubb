@@ -1,4 +1,4 @@
-import { ApiError } from '@/api/diagnostics';
+import { ApiError } from './http';
 
 // Retry só em erro de rede ou 5xx, até 2 vezes. A chave de idempotência vai nas variáveis
 // da mutation, então todo retry reenvia a mesma chave.

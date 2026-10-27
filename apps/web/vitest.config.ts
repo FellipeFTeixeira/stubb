@@ -9,6 +9,8 @@ export default mergeConfig(
       setupFiles: ['src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
       passWithNoTests: true,
+      // Com os pacotes rodando em paralelo (e a stack no ar) os testes de formulário passam de 5 s.
+      testTimeout: 15_000,
     },
   }),
 );

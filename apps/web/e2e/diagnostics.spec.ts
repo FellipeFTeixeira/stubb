@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('cria, incrementa e navega pelo histórico de latências', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/diagnostico');
 
   await page.getByTestId('create-ping-label-input').fill('teste e2e');
   await page.getByTestId('create-ping-submit').click();

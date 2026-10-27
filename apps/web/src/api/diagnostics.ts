@@ -1,70 +1,51 @@
 import {
   CommandAcceptedSchema,
   GetPingResponseSchema,
-  IDEMPOTENCY_KEY_HEADER,
   MIN_VERSION_QUERY_PARAM,
   diagnosticsRoutes,
   type CommandAccepted,
   type GetPingResponse,
 } from '@stubb/contracts';
+import { ApiError, getJson, sendCommand, withQuery } from './http';
 
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly body: unknown,
-  ) {
-    super(`HTTP ${status}`);
-    this.name = 'ApiError';
-  }
-}
-
-async function readBody(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
-async function postCommand(
-  url: string,
-  idempotencyKey: string,
-  body: unknown,
-): Promise<CommandAccepted> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', [IDEMPOTENCY_KEY_HEADER]: idempotencyKey },
-    body: JSON.stringify(body),
-  });
-  const json = await readBody(response);
-  if (response.status !== 202) throw new ApiError(response.status, json);
-  return CommandAcceptedSchema.parse(json);
-}
+export { ApiError };
 
 export function createPing(input: {
   label: string;
   idempotencyKey: string;
 }): Promise<CommandAccepted> {
-  return postCommand(diagnosticsRoutes.createPing, input.idempotencyKey, { label: input.label });
+  return sendCommand(
+    'POST',
+    diagnosticsRoutes.createPing,
+    input.idempotencyKey,
+    { label: input.label },
+    CommandAcceptedSchema,
+  );
 }
 
 export function incrementPing(input: {
   id: string;
   idempotencyKey: string;
 }): Promise<CommandAccepted> {
-  return postCommand(diagnosticsRoutes.incrementPing(input.id), input.idempotencyKey, {});
+  return sendCommand(
+    'POST',
+    diagnosticsRoutes.incrementPing(input.id),
+    input.idempotencyKey,
+    {},
+    CommandAcceptedSchema,
+  );
 }
 
 export type GetPingResult = ({ status: 'found' } & GetPingResponse) | { status: 'not-found' };
 
 export async function getPing(input: { id: string; minVersion?: number }): Promise<GetPingResult> {
-  const query =
-    input.minVersion === undefined ? '' : `?${MIN_VERSION_QUERY_PARAM}=${input.minVersion}`;
-  const response = await fetch(`${diagnosticsRoutes.getPing(input.id)}${query}`);
-  const json = await readBody(response);
-  if (response.status === 200) return { status: 'found', ...GetPingResponseSchema.parse(json) };
-  if (response.status === 404) return { status: 'not-found' };
-  throw new ApiError(response.status, json);
+  const result = await getJson(
+    withQuery(diagnosticsRoutes.getPing(input.id), {
+      [MIN_VERSION_QUERY_PARAM]: input.minVersion,
+    }),
+    GetPingResponseSchema,
+  );
+  return result.status === 'found' ? { status: 'found', ...result.data } : { status: 'not-found' };
 }
 
 export function describeCommandError(error: unknown): string {

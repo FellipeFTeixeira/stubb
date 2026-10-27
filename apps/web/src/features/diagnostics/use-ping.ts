@@ -1,21 +1,19 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getPing } from '@/api/diagnostics';
+import { PROJECTION_POLL_INTERVAL_MS, useVersionedQuery } from '@/lib/read-your-writes';
 
-export const POLL_INTERVAL_MS = 250;
+export const POLL_INTERVAL_MS = PROJECTION_POLL_INTERVAL_MS;
 
+// O diagnóstico espera a projeção sem limite (a latência é o que ele mede).
 export function usePing(id: string | null, minVersion?: number) {
-  return useQuery({
-    queryKey: ['diagnostics', 'ping', id, minVersion ?? null],
-    queryFn: () => getPing({ id: id as string, minVersion }),
-    enabled: id !== null,
-    // Mantém o último dado ao trocar de min_version, para a tela não piscar.
-    placeholderData: keepPreviousData,
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      if (data === undefined || minVersion === undefined) return false;
-      if (data.status === 'not-found') return POLL_INTERVAL_MS;
-      return data.minVersionReached ? false : POLL_INTERVAL_MS;
+  const { query } = useVersionedQuery({
+    queryKey: ['diagnostics', 'ping', id],
+    queryFn: async (version) => {
+      const result = await getPing({ id: id as string, minVersion: version });
+      return result.status === 'found' ? result : { ...result, minVersionReached: false };
     },
-    retry: false,
+    minVersion,
+    budgetMs: Infinity,
+    enabled: id !== null,
   });
+  return query;
 }
