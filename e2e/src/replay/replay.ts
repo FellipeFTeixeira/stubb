@@ -1,3 +1,4 @@
+import { READ_STORE_COLLECTION_NAMES } from '@stubb/contracts';
 import { compose } from '../support/compose.ts';
 import { withMongo } from '../support/mongo.ts';
 
@@ -11,8 +12,7 @@ export async function replay(): Promise<void> {
   compose('stop', 'projector');
 
   await withMongo(async (db) => {
-    await db.collection('pings').deleteMany({});
-    await db.collection('processed_events').deleteMany({});
+    for (const name of READ_STORE_COLLECTION_NAMES) await db.collection(name).deleteMany({});
   });
 
   const deadline = Date.now() + RESET_TIMEOUT_MS;
@@ -29,8 +29,7 @@ export async function replay(): Promise<void> {
         GROUP,
         '--reset-offsets',
         '--to-earliest',
-        '--topic',
-        'diagnostics.events',
+        '--all-topics',
         '--execute',
       );
       break;

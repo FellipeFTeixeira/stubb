@@ -6,6 +6,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:e2e": "vitest run src/api && vitest run src/replay",
     "replay": "node src/replay-cli.ts",
+    "seed:catalog": "node src/seed-cli.ts",
     "lint": "eslint . && prettier --check --ignore-path ../../.prettierignore ."
   },
   "devDependencies": {

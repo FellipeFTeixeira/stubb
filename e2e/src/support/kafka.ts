@@ -12,12 +12,13 @@ export interface CollectedMessage {
 }
 
 /**
- * Lê `diagnostics.events` desde o início com um grupo descartável (sem commit) e devolve
+ * Lê o tópico (padrão `diagnostics.events`) desde o início com um grupo descartável (sem commit) e devolve
  * as mensagens assim que o predicado aceita o conjunto coletado, ou o que houver após o timeout.
  */
 export async function collectMessages(
   predicate: (messages: CollectedMessage[]) => boolean,
   timeoutMs = 20000,
+  topic: string = DIAGNOSTICS_TOPIC,
 ): Promise<CollectedMessage[]> {
   const kafka = new KafkaJS.Kafka({
     // O localhost do host resolve também para ::1, onde a porta publicada não responde.
@@ -34,7 +35,7 @@ export async function collectMessages(
   });
 
   await consumer.connect();
-  await consumer.subscribe({ topics: [DIAGNOSTICS_TOPIC] });
+  await consumer.subscribe({ topics: [topic] });
   const timer = setTimeout(done, timeoutMs);
   const running = consumer.run({
     eachMessage: ({ partition, message }) => {

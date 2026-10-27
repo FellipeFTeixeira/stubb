@@ -13,7 +13,7 @@ interface RequestOptions {
 }
 
 export async function api<T = unknown>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   path: string,
   options: RequestOptions = {},
 ): Promise<ApiResponse<T>> {
