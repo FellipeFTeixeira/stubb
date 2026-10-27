@@ -81,7 +81,7 @@ apps/
   web/             frontend
 libs/
   contracts/       schemas Zod versionados (eventos, requests e responses: contrato público)
-e2e/               E2E de API, replay do read model
+e2e/               E2E de API, replay dos read models, seed de demonstração
 docker-compose.yaml          stack base (imagens de produção)
 docker-compose.override.yaml  sobreposição de dev, mesclada sozinha pelo `docker compose up`
 infra/             Nginx, bootstrap do Kafka/MongoDB/Debezium, docker-up.ps1
@@ -95,7 +95,20 @@ O projeto avança em fases, cada uma ligada a um conceito de CQRS: primeiro um w
 
 ## Como rodar
 
-O código atual é o esqueleto da Fase 1: um módulo técnico `diagnostics`, com um agregado `Ping`, que atravessa o pipeline inteiro (command → PostgreSQL e outbox → Debezium → Kafka → projector → MongoDB → read-service → web). Ele não tem regra de negócio; serve para exercitar e testar o mecanismo. A página em `http://127.0.0.1:8080` cria pings, incrementa o contador e mostra, por ação, quanto tempo o read model levou para refletir a escrita.
+O código atual tem dois módulos:
+
+- **Catalog** (Fase 2), o primeiro fluxo real: o produtor cadastra locais com planta de setores, cria eventos, agenda sessões, monta setores e lotes e publica cada sessão; o público vê a vitrine e a página do evento. Por enquanto existe um único produtor seed, sem login (a autenticação é a Fase 3), e não há venda: a página do evento não tem botão de compra.
+- **Diagnostics** (Fase 1), um agregado `Ping` sem regra de negócio, que continua como teste do mecanismo (command → PostgreSQL e outbox → Debezium → Kafka → projector → MongoDB → read-service → web). A página mostra, por ação, quanto tempo o read model levou para refletir a escrita.
+
+| Rota do web | O que é |
+|---|---|
+| `http://127.0.0.1:8080/` | Vitrine: busca por título, filtros de cidade e categoria, "Carregar mais" |
+| `/eventos/:id` | Página pública do evento: sessões, setores e lote vigente |
+| `/produtor/locais` | Locais do produtor: cadastro, edição e planta de setores |
+| `/produtor/eventos` | Meus eventos: criação, sessões, setores, lotes, publicação e descarte |
+| `/diagnostico` | Painel do Ping da Fase 1 |
+
+Os formulários do produtor mostram "Aguardando projeção…" até o read model alcançar a versão do command (read-your-writes via `min_version`). Se a projeção passar de 10 segundos, a tela avisa e oferece "Atualizar".
 
 ### Pré-requisitos
 
@@ -127,7 +140,7 @@ pnpm stack:up
 | 8083 | Kafka Connect (API REST do Debezium) |
 | 8081 | Kafbat UI, só no modo dev |
 
-**Acesse por `127.0.0.1`, não por `localhost`.** No Windows com o WSL em modo `mirrored`, `localhost` resolve primeiro para `::1` (IPv6), onde as portas publicadas pelo engine não respondem: o navegador fica esperando até estourar o tempo, às vezes de forma intermitente, e parece que a stack não subiu. Com `127.0.0.1` todas as portas da tabela abrem. Vale também para clientes SQL e para o MongoDB Compass (`127.0.0.1:5433` e `127.0.0.1:27017`, este com `directConnection=true`). Os clientes do repositório que rodam no host seguem usando `localhost`, e o cliente Kafka dos testes E2E força IPv4. Se a página não abrir, confira antes se há containers com `docker ps` e se o engine está de pé com `infra/scripts/docker-up.ps1`.
+**Acesse por `127.0.0.1`, não por `localhost`.** No Windows com o WSL em modo `mirrored`, `localhost` resolve primeiro para `::1` (IPv6), onde as portas publicadas pelo engine não respondem: o navegador fica esperando até estourar o tempo, às vezes de forma intermitente, e parece que a stack não subiu. Com `127.0.0.1` todas as portas da tabela abrem. Vale também para clientes SQL e para o MongoDB Compass (`127.0.0.1:5433` e `127.0.0.1:27017`, este com `directConnection=true`). Os clientes do repositório que rodam no host (testes E2E e seed) já usam `127.0.0.1`, e o cliente Kafka dos testes força IPv4. Se a página não abrir, confira antes se há containers com `docker ps` e se o engine está de pé com `infra/scripts/docker-up.ps1`.
 
 `pnpm stack:down` remove os containers e os volumes anônimos que as imagens do Mongo, do Kafka e do Connect criam a cada subida, e preserva os volumes nomeados com os dados. Para apagar também os dados: `docker compose down -v`.
 
@@ -139,7 +152,7 @@ Com a stack de produção no ar, os containers usam cerca de 1,8 GiB de memória
 pnpm stack:dev
 ```
 
-Usa `docker-compose.yaml` mais `docker-compose.override.yaml` (o Compose mescla os dois sozinho, então `docker compose up` já sobe o dev) com `up --build --watch`: os apps rodam com `nest start --watch` e o Vite roda atrás do Nginx, com HMR pelo WebSocket. O Compose Watch copia `src/` para dentro dos containers (não há bind mount do código, porque o NTFS não propaga eventos de arquivo para o container) e refaz a imagem quando mudam manifests, lockfile ou `libs/contracts`. No modo dev os containers usam cerca de 3,4 GiB (cada app Nest em watch e o Vite passam de 300 MiB). A Kafbat UI, em `http://127.0.0.1:8081`, mostra o tópico `diagnostics.events` e o conector `stubb-outbox`.
+Usa `docker-compose.yaml` mais `docker-compose.override.yaml` (o Compose mescla os dois sozinho, então `docker compose up` já sobe o dev) com `up --build --watch`: os apps rodam com `nest start --watch` e o Vite roda atrás do Nginx, com HMR pelo WebSocket. O Compose Watch copia `src/` para dentro dos containers (não há bind mount do código, porque o NTFS não propaga eventos de arquivo para o container) e refaz a imagem quando mudam manifests, lockfile ou `libs/contracts`. No modo dev os containers usam cerca de 3,4 GiB (cada app Nest em watch e o Vite passam de 300 MiB). A Kafbat UI, em `http://127.0.0.1:8081`, mostra os tópicos `diagnostics.events` e `catalog.events` e o conector `stubb-outbox`.
 
 ### Testes e qualidade
 
@@ -149,7 +162,8 @@ Usa `docker-compose.yaml` mais `docker-compose.override.yaml` (o Compose mescla 
 | `pnpm typecheck` | `tsc` em todos os pacotes |
 | `pnpm test` | testes unitários de todos os pacotes, sem Docker |
 | `pnpm test:e2e` | E2E de API (Vitest), replay e Playwright, no host, contra a stack de produção (`pnpm stack:up` antes) |
-| `pnpm replay` | reconstrói o read model a partir do Kafka |
+| `pnpm replay` | reconstrói os read models a partir do Kafka |
+| `pnpm seed:catalog` | cria os dados de demonstração pela API (veja abaixo) |
 
 O CI roda `pnpm install --frozen-lockfile`, `lint`, `typecheck` e `test` em push e pull request; os E2E ficam de fora porque precisam da stack inteira.
 
@@ -169,9 +183,19 @@ docker run -d --rm --name stubb-it-mongo-read -p 58018:27017 mongo:8.0.34
 
 As portas 58017 e 58018 evitam as faixas dinâmicas reservadas pelo Windows (57017 e 57018 caíam nelas). Pare cada container com `docker stop <nome>` ao terminar.
 
+### Dados de demonstração
+
+```
+pnpm seed:catalog
+```
+
+Com a stack de produção no ar, cria pela API (com `Idempotency-Key` e esperando cada projeção por `min_version`, como o web faz) 3 locais e 4 eventos: Teatro Aurora (São Paulo), Arena Horizonte (Belo Horizonte) e Casa Rio Negro (Manaus, fuso `America/Manaus`); os eventos são Hamlet, Horizonte Rock Festival, Riso Solto: a turnê e Bolhas de Sabão. Há sessões publicadas e em Rascunho, lotes que viram por data e uma sessão com vendas que só começam daqui a 10 dias. As datas são relativas ao dia da execução. O script roda uma vez: se algum dos quatro títulos já existir, imprime "Seed de demonstração já existe; nada a fazer." e sai sem criar nada. Depois, abra `http://127.0.0.1:8080/`, busque por "hamlet" e confira os lotes em "Área do produtor".
+
 ### O que o `pnpm replay` faz
 
-Para o projector, apaga as coleções `pings` e `processed_events` do MongoDB, reseta o offset do grupo `projector` para o início do tópico e sobe o projector de novo. Como o tópico tem retenção infinita e o documento é determinístico (`createdAt` e `updatedAt` vêm do `occurredAt` dos eventos), o read model volta idêntico. Um dos E2E prova isso comparando o documento antes e depois.
+Para o projector, apaga todas as coleções do read store (`pings`, `event_listing`, `event_detail`, `organizer_events`, `venues`, `aggregate_versions` e `processed_events`), reseta o offset do grupo `projector` para o início de todos os tópicos e sobe o projector de novo. Como os tópicos têm retenção infinita e os documentos são determinísticos (datas vêm do `occurredAt` dos eventos, e estados que dependem do relógio são calculados na query), os read models voltam idênticos. Um dos E2E prova isso comparando os documentos antes e depois.
+
+**Rode `pnpm replay` uma vez ao atualizar uma stack que já existia** (volume antigo). O projector da Fase 2 controla a ordem dos eventos de cada agregado em `aggregate_versions`, que começa vazia; sem o replay, o primeiro `PingIncremented` de um ping criado antes da atualização seria visto como lacuna e derrubaria o projector. Numa stack nova isso não acontece. Os serviços de bootstrap (`kafka-init`, `mongo-init`, `connect-init`) rodam de novo a cada `pnpm stack:up` e são idempotentes: é assim que uma stack existente ganha o tópico `catalog.events`, as coleções, os índices e a configuração atual do conector.
 
 ## Como o trabalho é feito
 

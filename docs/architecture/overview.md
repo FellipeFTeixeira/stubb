@@ -92,21 +92,53 @@ O prazo do hold e demais valores são regras de negócio a confirmar na fase cor
 
 ## Read models (MongoDB)
 
+Implementados (Fases 1 e 2):
+
+| Read model | Uso | Contexto |
+|---|---|---|
+| `pings` | Painel de diagnóstico | Diagnostics |
+| `event_listing` | Vitrine e busca: um documento por evento com ao menos uma sessão publicada, só com as sessões publicadas e os lotes que formam o preço do card | Catalog |
+| `event_detail` | Página pública do evento e base das duas telas do produtor: a árvore completa (sessões, setores, lotes), com rascunhos. Evento descartado vira uma lápide `{ _id, version, status: 'discarded' }` | Catalog |
+| `organizer_events` | Lista "Meus eventos": título, categoria, status e contagem de sessões | Catalog |
+| `venues` | Locais do produtor com a planta de setores | Catalog |
+
+Infraestrutura do projector, em todo read model: `processed_events` (deduplicação por `eventId`) e `aggregate_versions` (última `aggregateVersion` aplicada por agregado, que detecta evento repetido e lacuna). As duas coleções são gravadas na mesma transação do MongoDB que o read model e são apagadas no replay.
+
+Previstos nas fases seguintes:
+
 | Read model | Uso |
 |---|---|
-| `event_listing` | Vitrine e busca |
 | `session_seat_map` | Status de cada assento, um documento por sessão |
 | `sector_availability` | Contagem por setor/lote |
 | `customer_tickets` | "Meus ingressos" |
 | `organizer_sales` | Vendas por lote e receita |
 | `checkin_list` | Portaria |
 
+## Catalog (Fase 2)
+
+Primeiro fluxo real do sistema. O produtor (um usuário seed até a Fase 3) monta o catálogo nesta ordem:
+
+```
+Local (planta de setores) ─► Evento (Rascunho) ─► Sessão (Rascunho; copia planta e fuso do local)
+  ─► Setores da sessão ─► Lotes de cada setor ─► Publicação da sessão
+```
+
+- **Dois agregados no write:** `Venue` (local + planta) e `CatalogEvent` (evento + sessões + setores + lotes). O evento guarda a árvore inteira porque as regras de lote e de publicação cruzam sessão, setor e lote. Cada command muda um agregado, gera um evento de domínio e sobe a `version` em 1. São 14 commands e 14 eventos `V1`, todos no tópico `catalog.events` (partition key = ID do agregado).
+- **A sessão é a unidade publicável.** Não existe "publicar evento": o evento vira Publicado quando a primeira sessão é publicada, e `PublishSession` emite um único `SessionPublished` com o retrato completo da sessão. Sessão publicada fica congelada.
+- **Estados que dependem do relógio são derivados na query, nunca gravados.** Lote vigente, venda aberta, "Sessão encerrada" e "Evento encerrado" saem de `now` comparado a `startsAt`, `salesStartsAt` e `endsAt`, dentro do read-service. O projector não conhece o relógio: sem isso o read model mudaria sozinho e o replay não reproduziria o mesmo documento. As datas gravadas vêm só de `occurredAt`.
+- **Projeção em três tempos.** Um evento do agregado `CatalogEvent` reduz o `event_detail` e, na mesma transação, regrava `event_listing` e `organizer_events` com a mesma `version`. Um evento do `Venue` regrava `venues` e espalha nome, endereço e cidade para as sessões que usam o local (fan-out), sem mexer em `version` nem `updatedAt` do evento.
+- **Ordem entre agregados não é garantida, então a projeção é comutativa.** A sessão pode chegar ao projector antes do local que ela usa; nesse caso ela fica com `venue: null` e some das leituras públicas até o local chegar. O snapshot do local na sessão carrega o `detailsVersion` (contador só das edições de dados), e uma edição mais antiga nunca sobrescreve a mais nova. Os testes de integração provam que as três ordens de chegada dão os mesmos quatro documentos.
+- **Descarte.** Só evento em Rascunho. O `event_detail` fica com a lápide para o read-your-writes do descarte terminar: `GET .../organizer/events/:id?min_version=<versão do descarte>` responde `404` com `minVersionReached: true`.
+- **Payload cru no Kafka.** O Outbox Event Router entrega o JSON do `payload` da outbox como texto (`StringConverter`), sem expandi-lo em estrutura. Com `table.expand.json.payload` o Debezium infere um schema e corrompe listas de objetos de formato diferente (setor de pista e setor marcado na mesma lista), o que o contrato do evento não aceita.
+
+As telas do web: `/` vitrine, `/eventos/:id` página do evento, `/produtor/locais` e `/produtor/eventos` (cadastro, planta, sessões, lotes, publicação) e `/diagnostico`.
+
 ## Regras de negócio candidatas
 
-Viram specs SDD nas fases do roadmap. Nenhuma está confirmada ainda: valores e comportamentos serão definidos como Open Questions.
+Viram specs SDD nas fases do roadmap. Nenhuma está confirmada ainda, salvo o que a seção Catalog descreve: valores e comportamentos serão definidos como Open Questions.
 
 - Hold com TTL e liberação automática.
-- Virada de lote por data ou por esgotamento.
+- Virada de lote por esgotamento (por data já vale desde a Fase 2, ver Catalog).
 - Meia-entrada (Lei 12.933/2013).
 - Limite de ingressos por CPF por evento.
 - Taxa de conveniência.

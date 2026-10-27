@@ -2,7 +2,7 @@
 feature: Catalog
 fase: 2 — Catalog
 date: 2026-10-26
-status: approved
+status: implemented
 research: SDD/RESEARCH/2026-10-25-CatalogResearch.md
 spec: SDD/SPEC/2026-10-26-CatalogSpec.md
 ---
