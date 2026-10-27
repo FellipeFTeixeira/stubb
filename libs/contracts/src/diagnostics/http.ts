@@ -10,7 +10,6 @@ export const pingLabelSchema = z
 
 export const CreatePingRequestSchema = z.object({ label: pingLabelSchema });
 export const IncrementPingRequestSchema = z.object({});
-export const CommandAcceptedSchema = z.object({ id: uuidSchema, version: z.number().int().min(1) });
 
 export const PingViewSchema = z.object({
   id: uuidSchema,
@@ -34,7 +33,6 @@ export const PingNotFoundResponseSchema = z.object({
 
 export type CreatePingRequest = z.output<typeof CreatePingRequestSchema>;
 export type CreatePingRequestInput = z.input<typeof CreatePingRequestSchema>;
-export type CommandAccepted = z.infer<typeof CommandAcceptedSchema>;
 export type PingView = z.infer<typeof PingViewSchema>;
 export type GetPingResponse = z.infer<typeof GetPingResponseSchema>;
 export type PingNotFoundResponse = z.infer<typeof PingNotFoundResponseSchema>;

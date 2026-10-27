@@ -1,6 +1,20 @@
 import { z } from 'zod';
 import { uuidSchema } from '../shared/schemas.js';
 
+/** Envelope sem tipagem de payload, usado por infraestrutura que não conhece o domínio (ex.: OutboxWriter). */
+export interface AnyEventEnvelope {
+  eventId: string;
+  eventType: string;
+  schemaVersion: 1;
+  aggregateType: string;
+  aggregateId: string;
+  aggregateVersion: number;
+  occurredAt: string;
+  correlationId: string | null;
+  causationId: string | null;
+  payload: unknown;
+}
+
 export function createEventEnvelopeSchema<
   const TEvent extends string,
   const TAggregate extends string,
