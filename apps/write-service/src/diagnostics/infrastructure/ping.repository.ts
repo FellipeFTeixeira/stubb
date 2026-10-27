@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { BOUNDED_CONTEXT_DIAGNOSTICS } from '@stubb/contracts';
 import { OutboxWriter } from '../../shared/outbox/outbox-writer.js';
 import { ConcurrencyConflictError } from '../../shared/errors.js';
 import { TransactionContext } from '../../shared/transaction/transaction-context.js';
 import { Ping } from '../domain/ping.aggregate.js';
+import { toPingEnvelopes } from './ping-event.mapper.js';
 import { PingEntity } from './ping.entity.js';
 
 // Data Mapper: o agregado de domínio e a entity do TypeORM são classes separadas (OQ-34).
@@ -27,7 +29,10 @@ export class PingRepository {
       createdAt: ping.createdAt,
       updatedAt: ping.updatedAt,
     });
-    await this.outbox.append(ping.getUncommittedEvents());
+    await this.outbox.append(
+      BOUNDED_CONTEXT_DIAGNOSTICS,
+      toPingEnvelopes(ping.getUncommittedEvents()),
+    );
     ping.uncommit();
   }
 
@@ -41,7 +46,10 @@ export class PingRepository {
       .where('id = :id AND version = :expected', { id: ping.id, expected: expectedVersion })
       .execute();
     if (result.affected !== 1) throw new ConcurrencyConflictError(ping.id);
-    await this.outbox.append(ping.getUncommittedEvents());
+    await this.outbox.append(
+      BOUNDED_CONTEXT_DIAGNOSTICS,
+      toPingEnvelopes(ping.getUncommittedEvents()),
+    );
     ping.uncommit();
   }
 }

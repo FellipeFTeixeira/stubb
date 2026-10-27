@@ -4,6 +4,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { config } from './config.js';
 import { buildDataSourceOptions } from './database/data-source.js';
+import { CatalogModule } from './catalog/catalog.module.js';
 import { DiagnosticsModule } from './diagnostics/diagnostics.module.js';
 import { HealthController } from './health/health.controller.js';
 
@@ -13,6 +14,7 @@ import { HealthController } from './health/health.controller.js';
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({ useFactory: () => buildDataSourceOptions(config.DATABASE_URL) }),
     DiagnosticsModule,
+    CatalogModule,
   ],
   controllers: [HealthController],
 })

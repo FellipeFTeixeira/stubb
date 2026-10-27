@@ -36,7 +36,9 @@ export async function createTestApp(overrides: ProviderOverride[] = []): Promise
 }
 
 export async function truncateAll(dataSource: DataSource): Promise<void> {
-  await dataSource.query('TRUNCATE diagnostics_pings, outbox, idempotency_keys');
+  await dataSource.query(
+    'TRUNCATE diagnostics_pings, outbox, idempotency_keys, catalog_batches, catalog_session_sectors, catalog_sessions, catalog_events, catalog_venue_sectors, catalog_venues CASCADE',
+  );
 }
 
 export function newKey(): string {

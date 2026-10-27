@@ -8,15 +8,29 @@ function contextWith(headers: Record<string, string>): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
+function catchError(headers: Record<string, string>): BadRequestException {
+  try {
+    extractIdempotencyKey(undefined, contextWith(headers));
+  } catch (error) {
+    return error as BadRequestException;
+  }
+  throw new Error('expected extractIdempotencyKey to throw');
+}
+
 describe('extractIdempotencyKey', () => {
-  it('lança 400 quando o header está ausente', () => {
-    expect(() => extractIdempotencyKey(undefined, contextWith({}))).toThrow(BadRequestException);
+  it('lança 400 IDEMPOTENCY_KEY_INVALID quando o header está ausente', () => {
+    const error = catchError({});
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect(error.getResponse()).toEqual({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Idempotency-Key header is required and must be a UUID',
+      code: 'IDEMPOTENCY_KEY_INVALID',
+    });
   });
 
   it('lança 400 quando não é UUID', () => {
-    expect(() =>
-      extractIdempotencyKey(undefined, contextWith({ 'idempotency-key': 'abc' })),
-    ).toThrow(BadRequestException);
+    expect(catchError({ 'idempotency-key': 'abc' })).toBeInstanceOf(BadRequestException);
   });
 
   it('devolve a chave quando é UUID', () => {
