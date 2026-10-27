@@ -15,6 +15,9 @@ until curl -fsS "$CONNECT_URL/connectors" >/dev/null 2>&1; do
   sleep 2
 done
 
+# O payload da outbox já é o envelope JSON completo. Nada de expand.json.payload: o Debezium
+# converte o JSON em Struct, e array de objetos heterogêneos (setores de pista e marcado) ganha
+# campos nulos extras e array vazio some. StringConverter entrega o texto do jsonb como está.
 # Unquoted delimiter: DB_* are expanded; \${routedByValue} reaches Debezium literally.
 CONFIG=$(cat <<JSON
 {
@@ -34,8 +37,7 @@ CONFIG=$(cat <<JSON
   "snapshot.mode": "no_data",
   "tombstones.on.delete": "false",
   "key.converter": "org.apache.kafka.connect.storage.StringConverter",
-  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-  "value.converter.schemas.enable": "false",
+  "value.converter": "org.apache.kafka.connect.storage.StringConverter",
   "transforms": "outbox",
   "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
   "transforms.outbox.table.field.event.id": "id",
@@ -43,8 +45,6 @@ CONFIG=$(cat <<JSON
   "transforms.outbox.table.field.event.payload": "payload",
   "transforms.outbox.route.by.field": "bounded_context",
   "transforms.outbox.route.topic.replacement": "\${routedByValue}.events",
-  "transforms.outbox.table.expand.json.payload": "true",
-  "transforms.outbox.table.json.payload.null.behavior": "optional_bytes",
   "transforms.outbox.table.fields.additional.placement": "id:header:eventId,event_type:header:eventType"
 }
 JSON
