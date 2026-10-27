@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { EventDispatcher } from '../projection/event-dispatcher.js';
+import { TOPIC_REGISTRY } from '../projection/topic-registry.js';
 import type { ConsumedMessage, EventConsumer } from './event-consumer.js';
 import { KafkaConsumerService } from './kafka-consumer.service.js';
 
@@ -16,9 +17,9 @@ const event = {
   payload: { label: 'abc' },
 };
 
-function message(value: string): ConsumedMessage {
+function message(value: string, topic = 'diagnostics.events'): ConsumedMessage {
   return {
-    topic: 't',
+    topic,
     partition: 0,
     offset: '5',
     key: 'k',
@@ -81,6 +82,72 @@ describe('KafkaConsumerService.handle', () => {
   it('(5) commit rejeita: exit(1)', async () => {
     const { service, exit } = setup({ commit: () => Promise.reject(new Error('x')) });
     await service.handle(message(JSON.stringify(event)));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('(6) tópico fora do registro: sem dispatch, sem commit, exit(1)', async () => {
+    const { service, commit, dispatch, exit } = setup();
+    await service.handle(message(JSON.stringify(event), 'unknown.events'));
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('(7) eventType desconhecido no tópico registrado: sem dispatch, sem commit, exit(1)', async () => {
+    const { service, commit, dispatch, exit } = setup();
+    await service.handle(message(JSON.stringify({ ...event, eventType: 'PingExploded' })));
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('(8) assina todos os tópicos do registro', async () => {
+    const subscribe = vi.fn(() => Promise.resolve());
+    const consumer = {
+      connect: vi.fn(() => Promise.resolve()),
+      subscribe,
+      run: vi.fn(() => Promise.resolve()),
+    } as unknown as EventConsumer;
+    const service = new KafkaConsumerService(consumer, {} as EventDispatcher, vi.fn());
+    await service.onApplicationBootstrap();
+    expect(subscribe).toHaveBeenCalledWith(Object.keys(TOPIC_REGISTRY));
+    expect(Object.keys(TOPIC_REGISTRY)).toContain('diagnostics.events');
+    expect(Object.keys(TOPIC_REGISTRY)).toContain('catalog.events');
+  });
+
+  it('(9) catalog.events: envelope do Catalog é despachado e confirmado', async () => {
+    const { service, commit, dispatch, exit, calls } = setup();
+    const venueRegistered = {
+      eventId: '0197a0a0-0000-7000-8000-000000000003',
+      eventType: 'VenueRegistered',
+      schemaVersion: 1,
+      aggregateType: 'Venue',
+      aggregateId: '0197a0a0-0000-7000-8000-000000000004',
+      aggregateVersion: 1,
+      occurredAt: '2026-10-24T12:00:00.000Z',
+      correlationId: null,
+      causationId: null,
+      payload: {
+        organizerId: '0197a0a0-0000-7000-8000-000000000005',
+        name: 'Teatro',
+        address: 'Rua A, 1',
+        city: 'Porto Alegre',
+        state: 'RS',
+        timeZone: 'America/Sao_Paulo',
+      },
+    };
+    await service.handle(message(JSON.stringify(venueRegistered), 'catalog.events'));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual(['dispatch', 'commit']);
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it('(10) catalog.events: eventType de outro tópico é rejeitado', async () => {
+    const { service, commit, dispatch, exit } = setup();
+    await service.handle(message(JSON.stringify(event), 'catalog.events'));
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(1);
   });
 });

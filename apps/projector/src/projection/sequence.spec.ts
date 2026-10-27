@@ -3,15 +3,14 @@ import { decideProjection } from './sequence.js';
 
 describe('decideProjection', () => {
   it.each([
-    ['PingCreated', 1, null, 'apply'],
-    ['PingCreated', 1, 1, 'already-applied'],
-    ['PingCreated', 1, 3, 'already-applied'],
-    ['PingIncremented', 2, 1, 'apply'],
-    ['PingIncremented', 2, 2, 'already-applied'],
-    ['PingIncremented', 1, 2, 'already-applied'],
-    ['PingIncremented', 4, 2, 'gap'],
-    ['PingIncremented', 2, null, 'gap'],
-  ] as const)('%s v%i com atual %s -> %s', (type, version, current, expected) => {
-    expect(decideProjection(type, version, current)).toBe(expected);
+    [1, null, 'apply'],
+    [2, null, 'gap'],
+    [1, 1, 'already-applied'],
+    [1, 3, 'already-applied'],
+    [2, 2, 'already-applied'],
+    [3, 2, 'apply'],
+    [4, 2, 'gap'],
+  ] as const)('v%i com atual %s -> %s', (version, current, expected) => {
+    expect(decideProjection(version, current)).toBe(expected);
   });
 });

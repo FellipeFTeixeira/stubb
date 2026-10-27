@@ -5,8 +5,8 @@ import {
   type OnApplicationBootstrap,
   type OnModuleDestroy,
 } from '@nestjs/common';
-import { DIAGNOSTICS_TOPIC, DiagnosticsEventSchema } from '@stubb/contracts';
 import { EventDispatcher } from '../projection/event-dispatcher.js';
+import { type ProjectableEvent, TOPIC_REGISTRY } from '../projection/topic-registry.js';
 import {
   type ConsumedMessage,
   EVENT_CONSUMER,
@@ -26,13 +26,17 @@ export class KafkaConsumerService implements OnApplicationBootstrap, OnModuleDes
 
   async onApplicationBootstrap(): Promise<void> {
     await this.consumer.connect();
-    await this.consumer.subscribe([DIAGNOSTICS_TOPIC]);
+    await this.consumer.subscribe(Object.keys(TOPIC_REGISTRY));
     await this.consumer.run((m) => this.handle(m));
   }
 
   async handle(message: ConsumedMessage): Promise<void> {
     try {
-      const event = DiagnosticsEventSchema.parse(JSON.parse(message.value?.toString() ?? ''));
+      const parse = (
+        TOPIC_REGISTRY as Record<string, ((value: unknown) => ProjectableEvent) | undefined>
+      )[message.topic];
+      if (!parse) throw new Error(`Tópico fora do registro: ${message.topic}`);
+      const event = parse(JSON.parse(message.value?.toString() ?? ''));
       await this.dispatcher.dispatch(event);
       // Offset só é confirmado depois que o read model foi gravado.
       await this.consumer.commit(message);
