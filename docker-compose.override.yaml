@@ -8,6 +8,7 @@ x-dev-healthcheck: &dev-healthcheck
 services:
   write-service:
     image: stubb-write-service:dev
+    mem_limit: 1g
     build:
       target: dev
     command: ['pnpm', '--filter', '@stubb/write-service', 'start:dev']
@@ -34,6 +35,7 @@ services:
 
   read-service:
     image: stubb-read-service:dev
+    mem_limit: 1g
     build:
       target: dev
     command: ['pnpm', '--filter', '@stubb/read-service', 'start:dev']
@@ -60,6 +62,7 @@ services:
 
   projector:
     image: stubb-projector:dev
+    mem_limit: 1g
     build:
       target: dev
     command: ['pnpm', '--filter', '@stubb/projector', 'start:dev']
@@ -86,6 +89,7 @@ services:
 
   web:
     image: stubb-web:dev
+    mem_limit: 1280m
     build:
       context: .
       dockerfile: Dockerfile
@@ -124,8 +128,9 @@ services:
 
   kafbat:
     image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    mem_limit: 768m
     ports:
-      - '8081:8080'
+      - '${KAFBAT_HOST_PORT:-8081}:8080'
     environment:
       KAFKA_CLUSTERS_0_NAME: stubb
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092

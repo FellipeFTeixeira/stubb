@@ -12,18 +12,17 @@ x-app-healthcheck: &app-healthcheck
   timeout: 5s
   retries: 10
 
-x-seed-organizer-id: &seed-organizer-id ${SEED_ORGANIZER_ID:-0193a4f0-0000-7000-8000-000000000001}
-
 services:
   postgres:
     image: postgres:18.6-trixie
+    mem_limit: 512m
     command: ['postgres', '-c', 'wal_level=logical']
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-stubb}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stubb}
       POSTGRES_DB: ${POSTGRES_DB:-stubb}
     ports:
-      - '5433:5432'
+      - '${POSTGRES_HOST_PORT:-5433}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
@@ -36,9 +35,10 @@ services:
 
   mongo:
     image: mongo:8.0.34
-    command: ['--replSet', 'rs0', '--bind_ip_all']
+    mem_limit: 768m
+    command: ['--replSet', 'rs0', '--bind_ip_all', '--wiredTigerCacheSizeGB', '0.25']
     ports:
-      - '27017:27017'
+      - '${MONGO_HOST_PORT:-27017}:27017'
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -62,6 +62,7 @@ services:
   kafka:
     image: apache/kafka:4.3.2
     hostname: kafka
+    mem_limit: 1g
     ports:
       - '9094:9094'
     environment:
@@ -106,8 +107,9 @@ services:
 
   connect:
     image: quay.io/debezium/connect:3.7.0.Final
+    mem_limit: 1g
     ports:
-      - '8083:8083'
+      - '${CONNECT_HOST_PORT:-8083}:8083'
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: stubb-connect
@@ -177,21 +179,49 @@ services:
         condition: service_healthy
     restart: 'no'
 
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    mem_limit: 128m
+    restart: unless-stopped
+    ports:
+      - '${MAILPIT_HOST_PORT:-8025}:8025'
+
   write-service:
     build:
       context: .
       dockerfile: Dockerfile
       target: write-service
+    mem_limit: 512m
     restart: unless-stopped
     environment:
       PORT: '3001'
-      SEED_ORGANIZER_ID: *seed-organizer-id
       DATABASE_URL: postgres://${POSTGRES_USER:-stubb}:${POSTGRES_PASSWORD:-stubb}@postgres:5432/${POSTGRES_DB:-stubb}
+      JWT_PRIVATE_KEY: '${JWT_PRIVATE_KEY:?Gere as chaves com: pnpm jwt:keys}'
+      JWT_PUBLIC_KEY: '${JWT_PUBLIC_KEY:?Gere as chaves com: pnpm jwt:keys}'
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
+      MAIL_FROM: '${MAIL_FROM:-Stubb <nao-responda@stubb.local>}'
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://127.0.0.1:8080}
+      IDENTITY_SEED_ENABLED: ${IDENTITY_SEED_ENABLED:-true}
+      IDENTITY_ADMIN_ID: ${IDENTITY_ADMIN_ID:-0193a4f0-0000-7000-8000-000000000000}
+      IDENTITY_ADMIN_EMAIL: ${IDENTITY_ADMIN_EMAIL:-admin@stubb.local}
+      IDENTITY_ADMIN_PASSWORD: ${IDENTITY_ADMIN_PASSWORD:-stubb-admin-dev}
+      IDENTITY_ADMIN_NAME: '${IDENTITY_ADMIN_NAME:-Administrador Stubb}'
+      IDENTITY_ADMIN_CPF: ${IDENTITY_ADMIN_CPF:-12345678909}
+      IDENTITY_SEED_ORGANIZER_ID: ${IDENTITY_SEED_ORGANIZER_ID:-0193a4f0-0000-7000-8000-000000000001}
+      IDENTITY_SEED_ORGANIZER_EMAIL: ${IDENTITY_SEED_ORGANIZER_EMAIL:-produtor@stubb.local}
+      IDENTITY_SEED_ORGANIZER_PASSWORD: ${IDENTITY_SEED_ORGANIZER_PASSWORD:-stubb-produtor-dev}
+      IDENTITY_SEED_ORGANIZER_NAME: '${IDENTITY_SEED_ORGANIZER_NAME:-Produtor Demo}'
+      IDENTITY_SEED_ORGANIZER_CPF: ${IDENTITY_SEED_ORGANIZER_CPF:-98765432100}
+      IDENTITY_SEED_ORGANIZER_ORGANIZATION: '${IDENTITY_SEED_ORGANIZER_ORGANIZATION:-Produtora Demo}'
+      IDENTITY_SEED_ORGANIZER_CNPJ: ${IDENTITY_SEED_ORGANIZER_CNPJ:-11222333000181}
     depends_on:
       db-migrate:
         condition: service_completed_successfully
       connect-init:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
     healthcheck:
       <<: *app-healthcheck
       test:
@@ -207,12 +237,13 @@ services:
       context: .
       dockerfile: Dockerfile
       target: read-service
+    mem_limit: 512m
     restart: unless-stopped
     environment:
       PORT: '3002'
-      SEED_ORGANIZER_ID: *seed-organizer-id
       MONGO_URL: mongodb://mongo:27017/?replicaSet=rs0
-      MONGO_DB: stubb_read
+      MONGO_DB: ${MONGO_DB:-stubb_read}
+      JWT_PUBLIC_KEY: '${JWT_PUBLIC_KEY:?Gere as chaves com: pnpm jwt:keys}'
     depends_on:
       mongo-init:
         condition: service_completed_successfully
@@ -231,11 +262,12 @@ services:
       context: .
       dockerfile: Dockerfile
       target: projector
+    mem_limit: 512m
     restart: unless-stopped
     environment:
       PORT: '3003'
       MONGO_URL: mongodb://mongo:27017/?replicaSet=rs0
-      MONGO_DB: stubb_read
+      MONGO_DB: ${MONGO_DB:-stubb_read}
       KAFKA_BROKERS: kafka:9092
       KAFKA_GROUP_ID: projector
       KAFKA_CLIENT_ID: projector
@@ -259,8 +291,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: gateway
+    mem_limit: 64m
     ports:
-      - '8080:80'
+      - '${GATEWAY_HOST_PORT:-8080}:80'
     depends_on:
       write-service:
         condition: service_healthy

@@ -15,6 +15,7 @@
     "test:e2e": "pnpm --filter @stubb/e2e test:e2e && pnpm --filter @stubb/web test:e2e",
     "replay": "pnpm --filter @stubb/e2e replay",
     "seed:catalog": "pnpm --filter @stubb/contracts build && pnpm --filter @stubb/e2e seed:catalog",
+    "jwt:keys": "node infra/scripts/generate-jwt-keys.mjs",
     "stack:up": "docker compose -f docker-compose.yaml up -d --build --wait",
     "stack:dev": "docker compose up --build --watch",
     "stack:down": "docker compose rm -fsv && docker compose down"
