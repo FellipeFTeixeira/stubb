@@ -15,6 +15,7 @@ Lição central: **o read model serve para exibir; o write model é a verdade.**
 ```
 Cliente (web React + Vite)
   └─► Nginx
+        ├─ /api/identity/* (todos os métodos) ─► write-service
         ├─ GET ──────────► read-service ──► MongoDB
         └─ POST/PUT/... ─► write-service ─► PostgreSQL (tabelas de domínio + outbox)
                                                │ WAL (só a tabela outbox)
@@ -26,7 +27,7 @@ Cliente (web React + Vite)
                                                └─► write-service (sagas e reações entre contextos)
 ```
 
-- **Nginx**: reverse proxy. Roteia `GET` para o read-service e os demais métodos para o write-service. Separar por método é convenção, não regra: exceções (ex.: `POST /search`, que é query) são roteadas por prefixo.
+- **Nginx**: reverse proxy. Roteia `GET` para o read-service e os demais métodos para o write-service. Separar por método é convenção, não regra: exceções (ex.: `POST /search`, que é query) são roteadas por prefixo. A exceção em vigor é `/api/identity/*`, que vai inteira ao write-service, inclusive `GET` ([ADR 0010](adr/0010-identity-contexto-crud.md)).
 - **write-service**: recebe commands, executa regras nos agregados, grava estado e evento de domínio na mesma transação.
 - **Outbox + Debezium**: o Debezium lê do WAL do PostgreSQL apenas a tabela `outbox`; o Outbox Event Router publica cada evento no tópico do agregado. Sem dual-write e sem polling. Por usar outbox (e não CDC das tabelas de domínio), o Kafka recebe eventos com significado de negócio (`SeatsHeld`), não diffs de linha, e o schema interno do write fica livre para mudar.
 - **Kafka**: partition key = ID do agregado, garantindo ordem por agregado. Retenção longa para permitir replay.
@@ -54,7 +55,7 @@ Ferramenta de monorepo: pnpm workspaces ([ADR 0009](adr/0009-ferramental-e-pipel
 | Inventory | Disponibilidade, holds com TTL | Completo; coração do sistema |
 | Ordering | Pedido, pagamento (gateway fake + webhook), reembolso | Completo + process manager |
 | Ticketing | Emissão, transferência, check-in | Completo |
-| Identity | Usuário, CPF, papéis, autenticação | CRUD |
+| Identity | Usuário, CPF, verificação de e-mail, papéis, pedido de produtor, autenticação (JWT) | CRUD, sem outbox nem read model ([ADR 0010](adr/0010-identity-contexto-crud.md)) |
 
 Módulos só se comunicam por commands, queries e eventos públicos; nunca acessam tabelas de outro contexto.
 
@@ -116,7 +117,7 @@ Previstos nas fases seguintes:
 
 ## Catalog (Fase 2)
 
-Primeiro fluxo real do sistema. O produtor (um usuário seed até a Fase 3) monta o catálogo nesta ordem:
+Primeiro fluxo real do sistema. O produtor (um usuário seed na Fase 2; conta real a partir da Fase 3, ver Identity) monta o catálogo nesta ordem:
 
 ```
 Local (planta de setores) ─► Evento (Rascunho) ─► Sessão (Rascunho; copia planta e fuso do local)
@@ -132,6 +133,17 @@ Local (planta de setores) ─► Evento (Rascunho) ─► Sessão (Rascunho; cop
 - **Payload cru no Kafka.** O Outbox Event Router entrega o JSON do `payload` da outbox como texto (`StringConverter`), sem expandi-lo em estrutura. Com `table.expand.json.payload` o Debezium infere um schema e corrompe listas de objetos de formato diferente (setor de pista e setor marcado na mesma lista), o que o contrato do evento não aceita.
 
 As telas do web: `/` vitrine, `/eventos/:id` página do evento, `/produtor/locais` e `/produtor/eventos` (cadastro, planta, sessões, lotes, publicação) e `/diagnostico`.
+
+## Identity (Fase 3)
+
+Contexto CRUD, de propósito: sem CommandBus, outbox, evento ou read model. É o contraste com o Catalog, onde CQRS se paga ([ADR 0010](adr/0010-identity-contexto-crud.md)).
+
+- **Onde vive:** módulo `identity` do write-service, tabelas `identity_*` no PostgreSQL. O Nginx manda `/api/identity/*` ao write-service em todos os métodos, inclusive `GET` (`me`, histórico de pedidos, lista do admin), porque essas leituras exigem consistência forte e não têm projeção.
+- **Papéis:** `customer`, `organizer`, `admin` e `gate_staff` (reservado; sem fluxo até a Fase 6). Hierarquia admin > produtor > cliente: quem tem o papel maior tem também os menores. O admin nasce de seed; o produtor passa por pedido (organização, CNPJ, motivo) aprovado pelo admin.
+- **Autenticação:** access token JWT EdDSA de 15 min no header `Authorization: Bearer`, mantido só em memória no web; refresh opaco de 7 dias em cookie `HttpOnly`, `SameSite=Strict`, `Path=/api/identity/session`, com rotação e revogação da família no reuso. O write-service assina; write e read verificam, cada um com guard global default-deny (`@Public()`, `@Roles()`, `@CurrentUser()`). O refresh relê os papéis do banco, então uma aprovação vale no refresh seguinte.
+- **Catalog com ator:** os commands do Catalog recebem o `sub` do token como `organizerId` e checam posse antes da versão (recurso alheio = 404); as quatro leituras do produtor no read-service filtram pelo mesmo `sub`. Vitrine, página do evento, diagnostics e health seguem públicos.
+- **E-mail:** verificação de e-mail por link (24 h, uso único), enviado por SMTP depois do commit. No dev o SMTP é o Mailpit, com interface em `127.0.0.1:8025`.
+- **Segredos:** senha em `scrypt`, refresh e token de verificação em SHA-256; a chave privada JWT é o único segredo sem default no compose (`pnpm jwt:keys`). CPF só aparece mascarado (`***.456.789-**`) e nunca em token, log ou evento.
 
 ## Regras de negócio candidatas
 

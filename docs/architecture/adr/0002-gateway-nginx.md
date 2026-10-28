@@ -20,4 +20,5 @@ Nginx como reverse proxy. Requisições `GET` vão para o read-service; os demai
 
 - Configuração explícita, bom para aprender reverse proxy.
 - Rotear por método é convenção: uma query via `POST` (ex.: busca complexa) precisa de regra própria.
+- Exceção em vigor: `/api/identity/` vai inteiro ao write-service, inclusive `GET`, porque a Identity é CRUD sobre o PostgreSQL e não tem read model ([ADR 0010](0010-identity-contexto-crud.md)). O bloco `location /api/identity/` vem antes de `location /api/`.
 - Rate limit e fila virtual (Fase 9) podem ser implementados no próprio Nginx.

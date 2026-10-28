@@ -23,8 +23,11 @@ Linguagem ubíqua do Stubb. O termo em inglês é o usado no código.
 | Check-in | `CheckIn` | Validação do ingresso na portaria; um ingresso só pode ser usado uma vez. |
 | Meia-entrada | `HalfPrice` | Ingresso com 50% de desconto para públicos previstos em lei (Lei 12.933/2013). |
 | Taxa de conveniência | `ConvenienceFee` | Valor cobrado pela venda online, além do preço do ingresso. |
-| Produtor | `Organizer` | Quem cria e gerencia eventos e acompanha as vendas. Até a Fase 3 existe um único produtor seed, sem nome. |
-| Cliente | `Customer` | Quem compra ingressos. |
-| Portaria | `GateStaff` | Quem faz o check-in no local. |
+| Produtor | `Organizer` | Quem cria e gerencia eventos e acompanha as vendas. Conta aprovada pelo admin a partir de um pedido de produtor; só gerencia os próprios locais e eventos. O produtor seed da Fase 2 é uma conta real, verificada e aprovada, com o mesmo ID, e os dados de demonstração continuam dele. |
+| Cliente | `Customer` | Quem compra ingressos. Papel que toda conta tem ao se cadastrar. |
+| Admin | `Admin` | Quem decide os pedidos de produtor. Criado por seed, nunca pela aplicação. Tem também os papéis produtor e cliente, mas no Catalog age só sobre o que é dele. |
+| Pedido de produtor | `OrganizerRequest` | Solicitação de uma conta para virar produtor: nome da organização, CNPJ e motivo. Fica Pendente, Aprovado ou Recusado (com mensagem opcional); no máximo um pendente por conta. A recusa não é definitiva: a conta pode pedir de novo. Não confundir com `Order` (pedido de compra). |
+| Verificação de e-mail | `EmailVerification` | Link de uso único, válido por 24 h, enviado no cadastro e no reenvio. Reenviar invalida os links anteriores. Conta não verificada não faz login. |
+| Portaria | `GateStaff` | Quem faz o check-in no local. Papel `gate_staff` apenas reservado: sem cadastro, vínculo nem fluxo até a Fase 6. |
 
 Os números e regras de Local, Sessão, Setor e Lote acima são as decididas na Fase 2 (Catalog). Valores, percentuais, prazos e limites associados a esses termos são regras de negócio a confirmar no pipeline SDD.
