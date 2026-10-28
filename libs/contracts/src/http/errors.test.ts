@@ -9,9 +9,17 @@ import {
 } from '../index.js';
 
 describe('erros de command', () => {
-  it('tem 28 códigos sem repetição', () => {
-    expect(COMMAND_ERROR_CODES).toHaveLength(28);
-    expect(new Set(COMMAND_ERROR_CODES).size).toBe(28);
+  it('tem 40 códigos sem repetição', () => {
+    expect(COMMAND_ERROR_CODES).toHaveLength(40);
+    expect(new Set(COMMAND_ERROR_CODES).size).toBe(40);
+  });
+
+  it.each([
+    [401, 'Unauthorized', 'UNAUTHENTICATED'],
+    [409, 'Conflict', 'ORGANIZER_REQUEST_NOT_PENDING'],
+  ])('aceita o corpo %i com o código novo %s', (statusCode, error, code) => {
+    const body = { statusCode, error, message: 'x', code };
+    expect(DomainErrorResponseSchema.safeParse(body).success).toBe(true);
   });
 
   it('valida um corpo 400 de validação', () => {

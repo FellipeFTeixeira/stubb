@@ -14,3 +14,6 @@ export * from './catalog/constants.js';
 export * from './catalog/fields.js';
 export * from './catalog/http.js';
 export * from './catalog/events.js';
+export * from './identity/constants.js';
+export * from './identity/documents.js';
+export * from './identity/http.js';
