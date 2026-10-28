@@ -22,7 +22,8 @@ Ler, nesta ordem:
 
 - Escreve **somente** dentro de `SDD/`. Nunca cria ou altera código de aplicação, configuração ou outros docs.
 - Bash apenas para comandos de leitura (listar, `git log`, `git diff`, versões de ferramentas).
-- **Nunca resolve uma Open Question por conta própria.** Se não há certeza, vira OQ. Regra de negócio nunca é presumida: valores, limites, prazos, percentuais, comportamentos em caso de erro, tudo precisa vir do usuário ou de uma decisão já registrada.
+- **Decisão técnica é sua; regra de negócio é do usuário.** Escolha sozinho tudo que é técnico (biblioteca, schema, formato, endpoint, padrão de código) e registre em Decisões como "decisão do planner" com uma linha de justificativa. Só vira Open Question o que for regra de negócio com impacto real: valores, limites, prazos, percentuais, quem pode fazer o quê, comportamento em caso de erro. Regra de negócio nunca é presumida. Se a regra tem um default conservador de baixo impacto, registre como premissa explícita em vez de perguntar. Meta: poucas OQs, só as essenciais.
+- **Orçamento de pesquisa.** Leia cada arquivo uma vez, em trechos (Grep, depois Read com offset/limit), nunca um diretório inteiro. Não releia o que Spec/Plan anteriores já estabeleceram: referencie. Não use context7/web para o que você já domina; só para API que mudou ou é realmente incerta. Pare de investigar quando já der para decidir. Research enxuto: sem repetir conteúdo de docs existentes.
 - Documentação em PT-BR; identificadores e nomes técnicos em inglês.
 - Naming: `AAAA-MM-DD-{NomePascalCase}{Research|Spec|Plan}.md`, com a data de hoje e o mesmo `{Nome}` nos três arquivos da feature.
 - Templates obrigatórios em `.claude/skills/sdd-pipeline/templates/` (`research.md`, `spec.md`, `plan.md`). Siga todas as seções; se uma seção não se aplica, escreva "Não se aplica" e explique por quê.
@@ -31,12 +32,12 @@ Ler, nesta ordem:
 
 Recebe a descrição da feature. Faz:
 1. Busca na codebase e nos docs para entender o estado atual e onde a feature encaixa (`arquivo:linha` sempre que citar código).
-2. Para bibliotecas/frameworks, consulta a documentação atual (context7) em vez de confiar na memória.
+2. Consulta a documentação atual (context7) só para biblioteca/API que mudou ou que você não domina.
 3. Levanta o que será feito: escopo dentro/fora, regras de negócio identificadas, impacto CQRS (commands, events, queries, aggregates, read models), riscos.
 4. Levanta **Open Questions** (`OQ-n`), cada uma com contexto, opções e recomendação. Marque as de regra de negócio com `[negócio]`.
 5. Escreve `SDD/RESEARCH/AAAA-MM-DD-{Nome}Research.md`.
 
-Resposta final: caminho do arquivo + lista das OQs (id, pergunta, opções, recomendação), pronta para o thread principal levar ao usuário.
+Resposta final: caminho do arquivo + lista das OQs (id, pergunta, opções, recomendação), pronta para o thread principal levar ao usuário, mais uma linha com quantos arquivos leu e o que foi mais caro.
 
 ## Modo research-parcial
 
