@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createFakeApi } from './fake-api';
+import { createFakeApi, fakeAccessToken, installFakeIdentity } from './fake-api';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -48,6 +48,35 @@ describe('createFakeApi', () => {
     });
     expect((await fetch('/api/x', { method: 'DELETE' })).status).toBe(404);
     expect(api.calls).toHaveLength(2);
+  });
+
+  it('chamadas /api/identity/ ficam em identityCalls, fora de calls', async () => {
+    const api = createFakeApi();
+    api.on('GET', '/api/x', () => ({ status: 200, body: {} }));
+    api.on('GET', '/api/identity/me', () => ({ status: 200, body: {} }));
+    api.install();
+    await fetch('/api/x');
+    await fetch('/api/identity/me');
+    expect(api.calls.map((c) => c.path)).toEqual(['/api/x']);
+    expect(api.identityCalls.map((c) => c.path)).toEqual(['/api/identity/me']);
+  });
+
+  it('Identity falsa: semeia usuário, emite JWT lido por /me e mascara o CPF', async () => {
+    const api = createFakeApi();
+    const identity = installFakeIdentity(api);
+    api.install();
+    const user = identity.seedUser();
+    const login = await fetch('/api/identity/session', {
+      method: 'POST',
+      body: JSON.stringify({ email: user.email, password: user.password }),
+    });
+    const { accessToken } = (await login.json()) as { accessToken: string };
+    const me = await fetch('/api/identity/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    expect(await me.json()).toMatchObject({ id: user.id, cpf: '***.456.789-**' });
+    expect((await fetch('/api/identity/me')).status).toBe(401);
+    expect(fakeAccessToken(user).split('.')).toHaveLength(3);
   });
 
   it('handler registrado depois vence o anterior e pode ser assíncrono', async () => {

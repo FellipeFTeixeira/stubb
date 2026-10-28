@@ -3,6 +3,12 @@ import { OrganizerLayout } from '@/app/organizer-layout';
 import { RootLayout } from '@/app/root-layout';
 import { DiagnosticsPage } from '@/pages/diagnostics-page';
 import { EventPage } from '@/pages/event-page';
+import { RequireAuth, RequireRole } from '@/features/session/route-guards';
+import { AccountPage } from '@/pages/identity/account-page';
+import { AdminOrganizerRequestsPage } from '@/pages/identity/admin-organizer-requests-page';
+import { LoginPage } from '@/pages/identity/login-page';
+import { RegisterPage } from '@/pages/identity/register-page';
+import { VerifyEmailPage } from '@/pages/identity/verify-email-page';
 import { NotFoundPage } from '@/pages/not-found-page';
 import { EventManagePage } from '@/pages/organizer/event-manage-page';
 import { OrganizerEventsPage } from '@/pages/organizer/events-page';
@@ -20,9 +26,32 @@ export const appRoutes: RouteObject[] = [
     children: [
       { index: true, element: <ShowcasePage /> },
       { path: 'eventos/:eventId', element: <EventPage /> },
+      { path: 'entrar', element: <LoginPage /> },
+      { path: 'cadastro', element: <RegisterPage /> },
+      { path: 'verificar-email', element: <VerifyEmailPage /> },
+      {
+        path: 'conta',
+        element: (
+          <RequireAuth>
+            <AccountPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'admin/produtores',
+        element: (
+          <RequireRole role="admin">
+            <AdminOrganizerRequestsPage />
+          </RequireRole>
+        ),
+      },
       {
         path: 'produtor',
-        element: <OrganizerLayout />,
+        element: (
+          <RequireRole role="organizer">
+            <OrganizerLayout />
+          </RequireRole>
+        ),
         children: [
           { path: 'eventos', element: <OrganizerEventsPage /> },
           { path: 'eventos/novo', element: <NewEventPage /> },

@@ -39,6 +39,18 @@ const MESSAGES: Record<CommandErrorCode, string> = {
   SESSION_WITHOUT_SECTORS: 'A sessão precisa de pelo menos um setor para ser publicada.',
   SECTOR_WITHOUT_BATCH: 'Todo setor da sessão precisa de pelo menos um lote para publicar.',
   BATCH_ENDED: 'Há lote com data de fim no passado. Remova-o e cadastre de novo.',
+  UNAUTHENTICATED: 'Sua sessão expirou. Entre novamente para continuar.',
+  FORBIDDEN: 'Você não tem permissão para fazer isso.',
+  EMAIL_ALREADY_REGISTERED: 'Este e-mail já está cadastrado.',
+  CPF_ALREADY_REGISTERED: 'Este CPF já está cadastrado.',
+  VERIFICATION_TOKEN_INVALID: 'O link de verificação é inválido ou expirou. Peça um novo.',
+  INVALID_CREDENTIALS: 'E-mail ou senha incorretos.',
+  EMAIL_NOT_VERIFIED: 'Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.',
+  SESSION_INVALID: 'Sua sessão não é mais válida. Entre novamente.',
+  ALREADY_ORGANIZER: 'Esta conta já é de produtor.',
+  ORGANIZER_REQUEST_PENDING: 'Você já tem um pedido de produtor aguardando análise.',
+  ORGANIZER_REQUEST_NOT_FOUND: 'Pedido de produtor não encontrado.',
+  ORGANIZER_REQUEST_NOT_PENDING: 'Este pedido já foi analisado.',
 };
 
 // Campo do formulário que cada erro de regra de negócio (422) destaca.
