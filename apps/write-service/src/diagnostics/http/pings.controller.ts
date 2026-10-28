@@ -9,6 +9,7 @@ import {
   type CreatePingRequest,
 } from '@stubb/contracts';
 import type { Request } from 'express';
+import { Public } from '../../auth/decorators.js';
 import { DomainErrorFilter } from '../../shared/http/domain-error.filter.js';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe.js';
 import { IdempotencyKey } from '../../shared/idempotency/idempotency-key.decorator.js';
@@ -17,6 +18,7 @@ import { hashRequest } from '../../shared/idempotency/request-hash.js';
 import { CreatePingCommand } from '../application/create-ping.command.js';
 import { IncrementPingCommand } from '../application/increment-ping.command.js';
 
+@Public()
 @Controller('diagnostics/pings')
 @UseFilters(DomainErrorFilter)
 export class PingsController {

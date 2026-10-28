@@ -14,7 +14,7 @@ export class UpdateEventDetailsHandler implements ICommandHandler<UpdateEventDet
   ) {}
 
   async execute(command: UpdateEventDetailsCommand): Promise<CommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     // Edição com versão esperada (RN-51): divergência vira 409 antes de qualquer mudança.
     if (command.expectedVersion !== expected) throw new ConcurrencyConflictError(event.id);

@@ -1,3 +1,4 @@
+import '../support/auth.js';
 import type { INestApplication, Type } from '@nestjs/common';
 import type { Server } from 'node:http';
 import { Test } from '@nestjs/testing';
@@ -37,7 +38,7 @@ export async function createTestApp(overrides: ProviderOverride[] = []): Promise
 
 export async function truncateAll(dataSource: DataSource): Promise<void> {
   await dataSource.query(
-    'TRUNCATE diagnostics_pings, outbox, idempotency_keys, catalog_batches, catalog_session_sectors, catalog_sessions, catalog_events, catalog_venue_sectors, catalog_venues CASCADE',
+    'TRUNCATE diagnostics_pings, outbox, idempotency_keys, catalog_batches, catalog_session_sectors, catalog_sessions, catalog_events, catalog_venue_sectors, catalog_venues, identity_refresh_tokens, identity_email_verifications, identity_organizer_requests, identity_user_roles, identity_users CASCADE',
   );
 }
 

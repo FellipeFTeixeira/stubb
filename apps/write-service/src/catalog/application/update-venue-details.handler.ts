@@ -14,7 +14,7 @@ export class UpdateVenueDetailsHandler implements ICommandHandler<UpdateVenueDet
   ) {}
 
   async execute(command: UpdateVenueDetailsCommand): Promise<CommandAccepted> {
-    const venue = await requireVenue(this.venues, command.venueId);
+    const venue = await requireVenue(this.venues, command.venueId, command.actorId);
     const expected = venue.version;
     // Edição com versão esperada (RN-51): divergência vira 409 antes de qualquer mudança.
     if (command.expectedVersion !== expected) throw new ConcurrencyConflictError(venue.id);

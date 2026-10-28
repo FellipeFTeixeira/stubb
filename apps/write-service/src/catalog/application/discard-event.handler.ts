@@ -13,7 +13,7 @@ export class DiscardEventHandler implements ICommandHandler<DiscardEventCommand>
   ) {}
 
   async execute(command: DiscardEventCommand): Promise<CommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     event.discard(this.clock.now());
     await this.events.delete(event, expected);

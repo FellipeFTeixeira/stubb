@@ -28,11 +28,14 @@ import {
   uuidSchema,
 } from '@stubb/contracts';
 import type { Request } from 'express';
+import type { AuthenticatedUser } from '../../auth/authenticated-user.js';
+import { CurrentUser, Roles } from '../../auth/decorators.js';
 import { DomainErrorFilter } from '../../shared/http/domain-error.filter.js';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe.js';
 import { IdempotencyKey } from '../../shared/idempotency/idempotency-key.decorator.js';
 import { IdempotencyService } from '../../shared/idempotency/idempotency.service.js';
 import { hashRequest } from '../../shared/idempotency/request-hash.js';
+import { idempotencyScope } from '../../shared/idempotency/scope.js';
 import { AddBatchCommand } from '../application/add-batch.command.js';
 import { AddSessionSectorCommand } from '../application/add-session-sector.command.js';
 import { CreateEventCommand } from '../application/create-event.command.js';
@@ -47,6 +50,7 @@ import { UpdateEventDetailsCommand } from '../application/update-event-details.c
 const uuidParam = () => new ZodValidationPipe(uuidSchema);
 const emptyBody = () => new ZodValidationPipe(EmptyCommandRequestSchema);
 
+@Roles('organizer')
 @Controller('catalog/events')
 @UseFilters(DomainErrorFilter)
 export class EventsController {
@@ -60,15 +64,16 @@ export class EventsController {
   create(
     @IdempotencyKey() key: string,
     @Body(new ZodValidationPipe(CreateEventRequestSchema)) body: CreateEventRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<CommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.createEvent,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.createEvent, user.id),
         requestHash: hashRequest('POST', req.path, body),
       },
-      () => this.commandBus.execute(new CreateEventCommand(body)),
+      () => this.commandBus.execute(new CreateEventCommand(user.id, body)),
     );
   }
 
@@ -78,17 +83,20 @@ export class EventsController {
     @IdempotencyKey() key: string,
     @Param('eventId', uuidParam()) eventId: string,
     @Body(new ZodValidationPipe(UpdateEventDetailsRequestSchema)) body: UpdateEventDetailsRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<CommandAccepted> {
     const { expectedVersion, ...details } = body;
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.updateEventDetails,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.updateEventDetails, user.id),
         requestHash: hashRequest('PATCH', req.path, body),
       },
       () =>
-        this.commandBus.execute(new UpdateEventDetailsCommand(eventId, expectedVersion, details)),
+        this.commandBus.execute(
+          new UpdateEventDetailsCommand(user.id, eventId, expectedVersion, details),
+        ),
     );
   }
 
@@ -98,15 +106,16 @@ export class EventsController {
     @IdempotencyKey() key: string,
     @Param('eventId', uuidParam()) eventId: string,
     @Body(emptyBody()) body: Record<string, never>,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<CommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.discardEvent,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.discardEvent, user.id),
         requestHash: hashRequest('DELETE', req.path, body),
       },
-      () => this.commandBus.execute(new DiscardEventCommand(eventId)),
+      () => this.commandBus.execute(new DiscardEventCommand(user.id, eventId)),
     );
   }
 
@@ -116,15 +125,16 @@ export class EventsController {
     @IdempotencyKey() key: string,
     @Param('eventId', uuidParam()) eventId: string,
     @Body(new ZodValidationPipe(ScheduleSessionRequestSchema)) body: ScheduleSessionRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<EntityCommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.scheduleSession,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.scheduleSession, user.id),
         requestHash: hashRequest('POST', req.path, body),
       },
-      () => this.commandBus.execute(new ScheduleSessionCommand(eventId, body)),
+      () => this.commandBus.execute(new ScheduleSessionCommand(user.id, eventId, body)),
     );
   }
 
@@ -135,15 +145,16 @@ export class EventsController {
     @Param('eventId', uuidParam()) eventId: string,
     @Param('sessionId', uuidParam()) sessionId: string,
     @Body(emptyBody()) body: Record<string, never>,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<CommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.removeSession,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.removeSession, user.id),
         requestHash: hashRequest('DELETE', req.path, body),
       },
-      () => this.commandBus.execute(new RemoveSessionCommand(eventId, sessionId)),
+      () => this.commandBus.execute(new RemoveSessionCommand(user.id, eventId, sessionId)),
     );
   }
 
@@ -154,15 +165,16 @@ export class EventsController {
     @Param('eventId', uuidParam()) eventId: string,
     @Param('sessionId', uuidParam()) sessionId: string,
     @Body(emptyBody()) body: Record<string, never>,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<CommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.publishSession,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.publishSession, user.id),
         requestHash: hashRequest('POST', req.path, body),
       },
-      () => this.commandBus.execute(new PublishSessionCommand(eventId, sessionId)),
+      () => this.commandBus.execute(new PublishSessionCommand(user.id, eventId, sessionId)),
     );
   }
 
@@ -173,17 +185,18 @@ export class EventsController {
     @Param('eventId', uuidParam()) eventId: string,
     @Param('sessionId', uuidParam()) sessionId: string,
     @Body(new ZodValidationPipe(AddSessionSectorRequestSchema)) body: AddSessionSectorRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<EntityCommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.addSessionSector,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.addSessionSector, user.id),
         requestHash: hashRequest('POST', req.path, body),
       },
       () =>
         this.commandBus.execute(
-          new AddSessionSectorCommand(eventId, sessionId, body.venueSectorId),
+          new AddSessionSectorCommand(user.id, eventId, sessionId, body.venueSectorId),
         ),
     );
   }
@@ -196,17 +209,18 @@ export class EventsController {
     @Param('sessionId', uuidParam()) sessionId: string,
     @Param('sessionSectorId', uuidParam()) sessionSectorId: string,
     @Body(emptyBody()) body: Record<string, never>,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<CommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.removeSessionSector,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.removeSessionSector, user.id),
         requestHash: hashRequest('DELETE', req.path, body),
       },
       () =>
         this.commandBus.execute(
-          new RemoveSessionSectorCommand(eventId, sessionId, sessionSectorId),
+          new RemoveSessionSectorCommand(user.id, eventId, sessionId, sessionSectorId),
         ),
     );
   }
@@ -219,15 +233,19 @@ export class EventsController {
     @Param('sessionId', uuidParam()) sessionId: string,
     @Param('sessionSectorId', uuidParam()) sessionSectorId: string,
     @Body(new ZodValidationPipe(AddBatchRequestSchema)) body: AddBatchRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<EntityCommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.addBatch,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.addBatch, user.id),
         requestHash: hashRequest('POST', req.path, body),
       },
-      () => this.commandBus.execute(new AddBatchCommand(eventId, sessionId, sessionSectorId, body)),
+      () =>
+        this.commandBus.execute(
+          new AddBatchCommand(user.id, eventId, sessionId, sessionSectorId, body),
+        ),
     );
   }
 
@@ -240,17 +258,18 @@ export class EventsController {
     @Param('sessionSectorId', uuidParam()) sessionSectorId: string,
     @Param('batchId', uuidParam()) batchId: string,
     @Body(emptyBody()) body: Record<string, never>,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<CommandAccepted> {
     return this.idempotency.execute(
       {
         key,
-        scope: CATALOG_ROUTE_TEMPLATES.removeBatch,
+        scope: idempotencyScope(CATALOG_ROUTE_TEMPLATES.removeBatch, user.id),
         requestHash: hashRequest('DELETE', req.path, body),
       },
       () =>
         this.commandBus.execute(
-          new RemoveBatchCommand(eventId, sessionId, sessionSectorId, batchId),
+          new RemoveBatchCommand(user.id, eventId, sessionId, sessionSectorId, batchId),
         ),
     );
   }

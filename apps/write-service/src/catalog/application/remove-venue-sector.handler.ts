@@ -13,7 +13,7 @@ export class RemoveVenueSectorHandler implements ICommandHandler<RemoveVenueSect
   ) {}
 
   async execute(command: RemoveVenueSectorCommand): Promise<CommandAccepted> {
-    const venue = await requireVenue(this.venues, command.venueId);
+    const venue = await requireVenue(this.venues, command.venueId, command.actorId);
     const expected = venue.version;
     venue.removeSector(command.venueSectorId, this.clock.now());
     await this.venues.update(venue, expected);

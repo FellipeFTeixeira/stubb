@@ -10,7 +10,7 @@ import {
 } from '../setup.js';
 import {
   CLOCK_OVERRIDE,
-  SEED_ORGANIZER_ID,
+  TEST_ORGANIZER_ID,
   accept,
   addVenueSector,
   createEvent,
@@ -52,7 +52,7 @@ describe('Venue', () => {
     );
     expect(venues).toEqual([
       {
-        organizer_id: SEED_ORGANIZER_ID,
+        organizer_id: TEST_ORGANIZER_ID,
         name: 'Teatro Aurora',
         address: 'Rua das Acácias, 120 - Centro',
         city: 'São Paulo',
@@ -72,7 +72,7 @@ describe('Venue', () => {
       event_type: 'VenueRegistered',
     });
     const envelope = parseEnvelope(must(outbox[0], 'outbox'));
-    expect(envelope.payload).toMatchObject({ organizerId: SEED_ORGANIZER_ID, city: 'São Paulo' });
+    expect(envelope.payload).toMatchObject({ organizerId: TEST_ORGANIZER_ID, city: 'São Paulo' });
   });
 
   it('CA-7: UpdateVenueDetails com expectedVersion certa aplica; a repetida dá 409 sem gravar', async () => {

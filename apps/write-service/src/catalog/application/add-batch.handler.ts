@@ -14,7 +14,7 @@ export class AddBatchHandler implements ICommandHandler<AddBatchCommand> {
   ) {}
 
   async execute(command: AddBatchCommand): Promise<EntityCommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     const { batch } = command;
     const batchId = v7();

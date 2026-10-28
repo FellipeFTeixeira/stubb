@@ -1,5 +1,6 @@
 import { CatalogDomainEventSchema, type CatalogDomainEvent } from '@stubb/contracts';
 import { Clock } from '../../../src/shared/clock/clock.js';
+import { OTHER_ORGANIZER_ID, TEST_ORGANIZER_ID, authHeader } from '../../support/auth.js';
 import { api, body, newKey, rows, type ProviderOverride, type TestApp } from '../setup.js';
 
 // Relógio fixo: "agora" do write-service nos testes do Catalog.
@@ -13,7 +14,7 @@ export const CLOCK_OVERRIDE: ProviderOverride = {
   provide: Clock,
   useValue: { now: () => clockState.now },
 };
-export const SEED_ORGANIZER_ID = '0193a4f0-0000-7000-8000-000000000001';
+export { OTHER_ORGANIZER_ID, TEST_ORGANIZER_ID };
 
 export const STARTS_AT = '2026-12-10T23:00:00.000Z';
 export const SALES_STARTS_AT = '2026-11-02T12:00:00.000Z';
@@ -26,14 +27,18 @@ export interface Accepted {
 
 export type Method = 'post' | 'patch' | 'delete';
 
-export function send(
+// Envia o Bearer do produtor de teste por padrão; `actor` troca o `sub` do token (papel organizer).
+export async function send(
   ctx: TestApp,
   method: Method,
   path: string,
   payload?: unknown,
   key: string | null = newKey(),
+  actor: string = TEST_ORGANIZER_ID,
 ) {
-  let req = api(ctx)[method](path);
+  let req = api(ctx)
+    [method](path)
+    .set(await authHeader(actor));
   if (key !== null) req = req.set('Idempotency-Key', key);
   return payload === undefined ? req : req.send(payload as object);
 }
@@ -44,8 +49,9 @@ export async function accept(
   method: Method,
   path: string,
   payload?: unknown,
+  actor: string = TEST_ORGANIZER_ID,
 ): Promise<Accepted> {
-  const res = await send(ctx, method, path, payload);
+  const res = await send(ctx, method, path, payload, newKey(), actor);
   if (res.status !== 202) {
     throw new Error(`${method} ${path} -> ${res.status} ${JSON.stringify(res.body)}`);
   }

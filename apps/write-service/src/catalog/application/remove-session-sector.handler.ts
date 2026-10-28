@@ -13,7 +13,7 @@ export class RemoveSessionSectorHandler implements ICommandHandler<RemoveSession
   ) {}
 
   async execute(command: RemoveSessionSectorCommand): Promise<CommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     event.removeSessionSector(command.sessionId, command.sessionSectorId, this.clock.now());
     await this.events.update(event, expected);

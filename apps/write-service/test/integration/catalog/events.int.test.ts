@@ -10,7 +10,7 @@ import {
 } from '../setup.js';
 import {
   CLOCK_OVERRIDE,
-  SEED_ORGANIZER_ID,
+  TEST_ORGANIZER_ID,
   eventBody,
   outboxRows,
   parseEnvelope,
@@ -49,7 +49,7 @@ describe('Evento', () => {
       [id],
     );
     expect(row).toEqual({
-      organizer_id: SEED_ORGANIZER_ID,
+      organizer_id: TEST_ORGANIZER_ID,
       title: 'Hamlet',
       status: 'draft',
       image_url: null,
@@ -65,7 +65,7 @@ describe('Evento', () => {
       event_type: 'EventCreated',
     });
     expect(parseEnvelope(must(outbox[0], 'outbox')).payload).toMatchObject({
-      organizerId: SEED_ORGANIZER_ID,
+      organizerId: TEST_ORGANIZER_ID,
       imageUrl: null,
     });
   });

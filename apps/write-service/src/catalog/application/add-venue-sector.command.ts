@@ -3,6 +3,7 @@ import type { AddVenueSectorRequest, EntityCommandAccepted } from '@stubb/contra
 
 export class AddVenueSectorCommand extends Command<EntityCommandAccepted> {
   constructor(
+    readonly actorId: string,
     readonly venueId: string,
     readonly sector: AddVenueSectorRequest,
   ) {

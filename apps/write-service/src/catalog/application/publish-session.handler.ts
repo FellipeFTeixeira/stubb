@@ -13,7 +13,7 @@ export class PublishSessionHandler implements ICommandHandler<PublishSessionComm
   ) {}
 
   async execute(command: PublishSessionCommand): Promise<CommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     event.publishSession(command.sessionId, this.clock.now());
     await this.events.update(event, expected);

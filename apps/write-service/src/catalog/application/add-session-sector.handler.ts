@@ -17,7 +17,7 @@ export class AddSessionSectorHandler implements ICommandHandler<AddSessionSector
   ) {}
 
   async execute(command: AddSessionSectorCommand): Promise<EntityCommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     // A planta atual do local da sessão é a origem da nova cópia do setor (RN-23).
     const venue = await this.venues.findById(event.sessionVenueId(command.sessionId));

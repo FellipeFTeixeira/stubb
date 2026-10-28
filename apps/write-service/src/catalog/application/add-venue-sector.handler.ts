@@ -14,7 +14,7 @@ export class AddVenueSectorHandler implements ICommandHandler<AddVenueSectorComm
   ) {}
 
   async execute(command: AddVenueSectorCommand): Promise<EntityCommandAccepted> {
-    const venue = await requireVenue(this.venues, command.venueId);
+    const venue = await requireVenue(this.venues, command.venueId, command.actorId);
     const expected = venue.version;
     const sectorId = v7();
     venue.addSector({ id: sectorId, ...command.sector }, this.clock.now());

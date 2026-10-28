@@ -3,6 +3,7 @@ import type { CommandAccepted } from '@stubb/contracts';
 
 export class RemoveVenueSectorCommand extends Command<CommandAccepted> {
   constructor(
+    readonly actorId: string,
     readonly venueId: string,
     readonly venueSectorId: string,
   ) {

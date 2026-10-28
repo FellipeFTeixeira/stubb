@@ -13,7 +13,7 @@ export class RemoveSessionHandler implements ICommandHandler<RemoveSessionComman
   ) {}
 
   async execute(command: RemoveSessionCommand): Promise<CommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     event.removeSession(command.sessionId, this.clock.now());
     await this.events.update(event, expected);

@@ -17,11 +17,13 @@ export class ScheduleSessionHandler implements ICommandHandler<ScheduleSessionCo
   ) {}
 
   async execute(command: ScheduleSessionCommand): Promise<EntityCommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     const { request } = command;
     const venue = await this.venues.findById(request.venueId);
-    if (!venue) throw new BusinessRuleViolationError('VENUE_NOT_FOUND');
+    // Local de outro produtor é tratado como inexistente (RN-19).
+    if (venue?.organizerId !== command.actorId)
+      throw new BusinessRuleViolationError('VENUE_NOT_FOUND');
     const sessionId = v7();
     event.scheduleSession(
       {

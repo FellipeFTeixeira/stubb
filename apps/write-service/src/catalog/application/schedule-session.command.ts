@@ -3,6 +3,7 @@ import type { EntityCommandAccepted, ScheduleSessionRequest } from '@stubb/contr
 
 export class ScheduleSessionCommand extends Command<EntityCommandAccepted> {
   constructor(
+    readonly actorId: string,
     readonly eventId: string,
     readonly request: ScheduleSessionRequest,
   ) {

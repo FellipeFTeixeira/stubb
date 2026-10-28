@@ -13,7 +13,7 @@ export class RemoveBatchHandler implements ICommandHandler<RemoveBatchCommand> {
   ) {}
 
   async execute(command: RemoveBatchCommand): Promise<CommandAccepted> {
-    const event = await requireEvent(this.events, command.eventId);
+    const event = await requireEvent(this.events, command.eventId, command.actorId);
     const expected = event.version;
     event.removeBatch(
       command.sessionId,
