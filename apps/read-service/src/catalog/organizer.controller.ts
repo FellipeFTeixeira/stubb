@@ -11,6 +11,8 @@ import {
   minVersionSchema,
   uuidSchema,
 } from '@stubb/contracts';
+import type { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { CurrentUser, Roles } from '../auth/decorators.js';
 import { ZodPipe } from '../common/zod-pipe.js';
 import {
   GetOrganizerEventQuery,
@@ -22,22 +24,29 @@ import {
 const minVersionPipe = new ZodPipe(minVersionSchema.optional(), MIN_VERSION_QUERY_PARAM);
 
 @Controller('catalog/organizer')
+@Roles('organizer')
 export class OrganizerController {
   constructor(private readonly queryBus: QueryBus) {}
 
   @Get('events')
   listEvents(
+    @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodPipe(ListOrganizerEventsQuerySchema, 'query')) params: ListOrganizerEventsParams,
   ): Promise<ListOrganizerEventsResponse> {
-    return this.queryBus.execute(new ListOrganizerEventsQuery(params.page, params.pageSize));
+    return this.queryBus.execute(
+      new ListOrganizerEventsQuery(user.id, params.page, params.pageSize),
+    );
   }
 
   @Get('events/:eventId')
   async getEvent(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('eventId', new ZodPipe(uuidSchema, 'eventId')) eventId: string,
     @Query(MIN_VERSION_QUERY_PARAM, minVersionPipe) minVersion: number | undefined,
   ): Promise<GetOrganizerEventResponse> {
-    const result = await this.queryBus.execute(new GetOrganizerEventQuery(eventId, minVersion));
+    const result = await this.queryBus.execute(
+      new GetOrganizerEventQuery(user.id, eventId, minVersion),
+    );
     if (!result.found) {
       throw new NotFoundException({
         statusCode: 404,
@@ -49,16 +58,17 @@ export class OrganizerController {
   }
 
   @Get('venues')
-  listVenues(): Promise<ListVenuesResponse> {
-    return this.queryBus.execute(new ListVenuesQuery());
+  listVenues(@CurrentUser() user: AuthenticatedUser): Promise<ListVenuesResponse> {
+    return this.queryBus.execute(new ListVenuesQuery(user.id));
   }
 
   @Get('venues/:venueId')
   async getVenue(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('venueId', new ZodPipe(uuidSchema, 'venueId')) venueId: string,
     @Query(MIN_VERSION_QUERY_PARAM, minVersionPipe) minVersion: number | undefined,
   ): Promise<GetVenueResponse> {
-    const result = await this.queryBus.execute(new GetVenueQuery(venueId, minVersion));
+    const result = await this.queryBus.execute(new GetVenueQuery(user.id, venueId, minVersion));
     if (!result.found) {
       throw new NotFoundException({
         statusCode: 404,

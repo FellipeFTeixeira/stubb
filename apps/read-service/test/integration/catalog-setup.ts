@@ -11,13 +11,14 @@ import {
 import { MongoClient } from 'mongodb';
 import { Clock } from '../../src/common/clock.js';
 import { CatalogModule } from '../../src/catalog/catalog.module.js';
-import { SEED_ORGANIZER_ID } from '../../src/catalog/seed-organizer.js';
+import { AuthModule } from '../../src/auth/auth.module.js';
 import { MongoModule } from '../../src/mongo/mongo.module.js';
+import { OTHER_ORGANIZER_ID, publicKeyPem, TEST_ORGANIZER_ID } from '../support/auth.js';
 
 export const MONGO_URL =
   process.env.MONGO_TEST_URL ?? 'mongodb://localhost:58018/?directConnection=true';
-export const OWNER = '0193a4f0-0000-7000-8000-000000000001';
-export const OTHER_OWNER = '0193a4f0-0000-7000-8000-0000000000aa';
+export const OWNER = TEST_ORGANIZER_ID;
+export const OTHER_OWNER = OTHER_ORGANIZER_ID;
 
 export const NOW = new Date('2026-11-01T12:00:00.000Z');
 
@@ -33,12 +34,16 @@ export async function createCatalogApp(dbName: string): Promise<CatalogTestConte
   const client = await new MongoClient(MONGO_URL).connect();
   let current = NOW;
   const moduleRef = await Test.createTestingModule({
-    imports: [CqrsModule.forRoot(), MongoModule.forRoot({ url: MONGO_URL, dbName }), CatalogModule],
+    // Without the guard the organizer routes would be open and nobody would notice (R-6).
+    imports: [
+      AuthModule.forRoot({ publicKeyPem }),
+      CqrsModule.forRoot(),
+      MongoModule.forRoot({ url: MONGO_URL, dbName }),
+      CatalogModule,
+    ],
   })
     .overrideProvider(Clock)
     .useValue({ now: () => current })
-    .overrideProvider(SEED_ORGANIZER_ID)
-    .useValue(OWNER)
     .compile();
   const app = moduleRef.createNestApplication();
   app.setGlobalPrefix('api', { exclude: ['health'] });

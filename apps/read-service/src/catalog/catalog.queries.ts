@@ -32,6 +32,7 @@ export class GetEventQuery extends Query<VersionedResult<'event', PublicEventVie
 
 export class ListOrganizerEventsQuery extends Query<ListOrganizerEventsResponse> {
   constructor(
+    public readonly organizerId: string,
     public readonly page: number,
     public readonly pageSize: number,
   ) {
@@ -41,6 +42,7 @@ export class ListOrganizerEventsQuery extends Query<ListOrganizerEventsResponse>
 
 export class GetOrganizerEventQuery extends Query<VersionedResult<'event', OrganizerEventView>> {
   constructor(
+    public readonly organizerId: string,
     public readonly eventId: string,
     public readonly minVersion?: number,
   ) {
@@ -48,10 +50,15 @@ export class GetOrganizerEventQuery extends Query<VersionedResult<'event', Organ
   }
 }
 
-export class ListVenuesQuery extends Query<ListVenuesResponse> {}
+export class ListVenuesQuery extends Query<ListVenuesResponse> {
+  constructor(public readonly organizerId: string) {
+    super();
+  }
+}
 
 export class GetVenueQuery extends Query<VersionedResult<'venue', VenueView>> {
   constructor(
+    public readonly organizerId: string,
     public readonly venueId: string,
     public readonly minVersion?: number,
   ) {

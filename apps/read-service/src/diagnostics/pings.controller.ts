@@ -6,10 +6,12 @@ import {
   minVersionSchema,
   uuidSchema,
 } from '@stubb/contracts';
+import { Public } from '../auth/decorators.js';
 import { ZodPipe } from '../common/zod-pipe.js';
 import { GetPingQuery } from './get-ping.query.js';
 
 @Controller('diagnostics/pings')
+@Public()
 export class PingsController {
   constructor(private readonly queryBus: QueryBus) {}
 

@@ -9,10 +9,12 @@ import {
   minVersionSchema,
   uuidSchema,
 } from '@stubb/contracts';
+import { Public } from '../auth/decorators.js';
 import { ZodPipe } from '../common/zod-pipe.js';
 import { GetEventQuery, ListEventsQuery } from './catalog.queries.js';
 
 @Controller('catalog/events')
+@Public()
 export class PublicEventsController {
   constructor(private readonly queryBus: QueryBus) {}
 

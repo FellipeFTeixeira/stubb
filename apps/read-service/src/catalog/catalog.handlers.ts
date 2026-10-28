@@ -22,7 +22,6 @@ import {
   ListVenuesQuery,
   type VersionedResult,
 } from './catalog.queries.js';
-import { SEED_ORGANIZER_ID } from './seed-organizer.js';
 import {
   toEventCard,
   toOrganizerEventSummary,
@@ -96,20 +95,14 @@ export class ListOrganizerEventsHandler implements IQueryHandler<
   ListOrganizerEventsQuery,
   ListOrganizerEventsResponse
 > {
-  constructor(
-    @Inject(CatalogReadRepository) private readonly repository: CatalogReadRepository,
-    @Inject(SEED_ORGANIZER_ID) private readonly organizerId: string,
-  ) {}
+  constructor(@Inject(CatalogReadRepository) private readonly repository: CatalogReadRepository) {}
 
   async execute({
+    organizerId,
     page,
     pageSize,
   }: ListOrganizerEventsQuery): Promise<ListOrganizerEventsResponse> {
-    const { items, total } = await this.repository.listOrganizerEvents(
-      this.organizerId,
-      page,
-      pageSize,
-    );
+    const { items, total } = await this.repository.listOrganizerEvents(organizerId, page, pageSize);
     return { items: items.map(toOrganizerEventSummary), page, pageSize, total };
   }
 }
@@ -122,17 +115,17 @@ export class GetOrganizerEventHandler implements IQueryHandler<
   constructor(
     @Inject(CatalogReadRepository) private readonly repository: CatalogReadRepository,
     @Inject(Clock) private readonly clock: Clock,
-    @Inject(SEED_ORGANIZER_ID) private readonly organizerId: string,
   ) {}
 
   async execute({
+    organizerId,
     eventId,
     minVersion,
   }: GetOrganizerEventQuery): Promise<VersionedResult<'event', OrganizerEventView>> {
     const { value, reached } = await readWithMinVersion(async () => {
       const doc = await this.repository.findEventDetail(eventId);
       // The tombstone carries no organizerId (RN-54); another owner's document is invisible.
-      if (doc && doc.status !== 'discarded' && doc.organizerId !== this.organizerId) return null;
+      if (doc && doc.status !== 'discarded' && doc.organizerId !== organizerId) return null;
       return doc;
     }, minVersion);
     if (value && value.status !== 'discarded') {
@@ -148,13 +141,10 @@ export class GetOrganizerEventHandler implements IQueryHandler<
 
 @QueryHandler(ListVenuesQuery)
 export class ListVenuesHandler implements IQueryHandler<ListVenuesQuery, ListVenuesResponse> {
-  constructor(
-    @Inject(CatalogReadRepository) private readonly repository: CatalogReadRepository,
-    @Inject(SEED_ORGANIZER_ID) private readonly organizerId: string,
-  ) {}
+  constructor(@Inject(CatalogReadRepository) private readonly repository: CatalogReadRepository) {}
 
-  async execute(): Promise<ListVenuesResponse> {
-    const venues = await this.repository.listVenues(this.organizerId);
+  async execute({ organizerId }: ListVenuesQuery): Promise<ListVenuesResponse> {
+    const venues = await this.repository.listVenues(organizerId);
     // I-5: alphabetical by name ignoring case and accents, tie broken by id.
     venues.sort(
       (a, b) =>
@@ -170,18 +160,16 @@ export class GetVenueHandler implements IQueryHandler<
   GetVenueQuery,
   VersionedResult<'venue', VenueView>
 > {
-  constructor(
-    @Inject(CatalogReadRepository) private readonly repository: CatalogReadRepository,
-    @Inject(SEED_ORGANIZER_ID) private readonly organizerId: string,
-  ) {}
+  constructor(@Inject(CatalogReadRepository) private readonly repository: CatalogReadRepository) {}
 
   async execute({
+    organizerId,
     venueId,
     minVersion,
   }: GetVenueQuery): Promise<VersionedResult<'venue', VenueView>> {
     const { value, reached } = await readWithMinVersion(async () => {
       const doc = await this.repository.findVenue(venueId);
-      return doc && doc.organizerId === this.organizerId ? doc : null;
+      return doc && doc.organizerId === organizerId ? doc : null;
     }, minVersion);
     return value
       ? { found: true, venue: toVenueView(value), minVersionReached: reached }

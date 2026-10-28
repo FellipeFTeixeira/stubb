@@ -21,6 +21,7 @@ import {
   OWNER,
   uid,
 } from './catalog-setup.js';
+import { authHeader, signTestToken } from '../support/auth.js';
 
 const DB = 'stubb_read_it_catalog_organizer';
 
@@ -61,7 +62,10 @@ function venueDoc(overrides: Partial<VenueDocument> & { _id: string }): VenueDoc
 describe('organizer reads (MongoDB)', () => {
   let ctx: CatalogTestContext;
   const col = (name: string) => ctx.client.db(DB).collection<{ _id: string }>(name);
-  const get = (path: string) => request(ctx.server()).get(`/api/catalog/organizer${path}`);
+  const get = async (path: string, sub: string = OWNER) =>
+    request(ctx.server())
+      .get(`/api/catalog/organizer${path}`)
+      .set(await authHeader(sub));
 
   beforeAll(async () => {
     ctx = await createCatalogApp(DB);
@@ -72,6 +76,53 @@ describe('organizer reads (MongoDB)', () => {
   beforeEach(async () => {
     for (const name of Object.values(READ_STORE_COLLECTIONS)) await col(name).deleteMany({});
     ctx.setNow(NOW);
+  });
+
+  describe('authentication (CA-23)', () => {
+    const routes = ['/events', `/events/${uid(900)}`, '/venues', `/venues/${uid(901)}`] as const;
+
+    it.each(routes)('GET %s answers 401 without a token', async (path) => {
+      const res = await request(ctx.server()).get(`/api/catalog/organizer${path}`);
+      expect(res.status).toBe(401);
+      expect(res.body).toMatchObject({ statusCode: 401, code: 'UNAUTHENTICATED' });
+    });
+
+    it.each(routes)('GET %s answers 403 with only the customer role', async (path) => {
+      const res = await request(ctx.server())
+        .get(`/api/catalog/organizer${path}`)
+        .set(await authHeader(OWNER, ['customer']));
+      expect(res.status).toBe(403);
+      expect(res.body).toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
+    });
+
+    it('answers 401 for an expired token', async () => {
+      const token = await signTestToken({
+        sub: OWNER,
+        roles: ['organizer'],
+        issuedAt: Math.floor(Date.now() / 1000) - 3600,
+      });
+      const res = await request(ctx.server())
+        .get('/api/catalog/organizer/events')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(401);
+    });
+
+    it('keeps the public showcase open without a token', async () => {
+      expect((await request(ctx.server()).get('/api/catalog/events')).status).toBe(200);
+    });
+
+    it('scopes each organizer to its own documents', async () => {
+      await col(READ_STORE_COLLECTIONS.organizerEvents).insertMany([
+        summary({ _id: uid(), title: 'Do dono' }),
+        summary({ _id: uid(), title: 'Do outro', organizerId: OTHER_OWNER }),
+      ]);
+      const mine = ListOrganizerEventsResponseSchema.parse((await get('/events')).body);
+      const theirs = ListOrganizerEventsResponseSchema.parse(
+        (await get('/events', OTHER_OWNER)).body,
+      );
+      expect(mine.items.map((i) => i.title)).toEqual(['Do dono']);
+      expect(theirs.items.map((i) => i.title)).toEqual(['Do outro']);
+    });
   });
 
   describe('GET /events (CA-36)', () => {
