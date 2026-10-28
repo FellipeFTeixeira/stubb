@@ -1,5 +1,9 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { sellerAuthHeaders } from './identity-support';
+
+// Cabeçalho Bearer do produtor seed, definido no início do teste.
+let auth: Record<string, string> = {};
 
 interface Accepted {
   id: string;
@@ -10,7 +14,7 @@ interface Accepted {
 async function command(request: APIRequestContext, path: string, data: unknown): Promise<Accepted> {
   const res = await request.post(path, {
     data,
-    headers: { 'Idempotency-Key': randomUUID() },
+    headers: { ...auth, 'Idempotency-Key': randomUUID() },
   });
   expect(res.status(), `POST ${path}`).toBe(202);
   return (await res.json()) as Accepted;
@@ -20,7 +24,7 @@ async function waitForVersion(request: APIRequestContext, path: string, version:
   await expect
     .poll(
       async () => {
-        const res = await request.get(`${path}?min_version=${version}`);
+        const res = await request.get(`${path}?min_version=${version}`, { headers: auth });
         if (res.status() !== 200) return false;
         return ((await res.json()) as { minVersionReached: boolean }).minVersionReached;
       },
@@ -33,6 +37,7 @@ test('vitrine e página do evento mostram o que foi publicado pela API', async (
   page,
   request,
 }) => {
+  auth = await sellerAuthHeaders(request);
   const word = `e2e${randomBytes(4).toString('hex')}`;
   const title = `Show ${word}`;
   const venueName = `Casa ${word}`;
@@ -68,7 +73,7 @@ test('vitrine e página do evento mostram o que foi publicado pela API', async (
   });
   const eventPath = `/api/catalog/organizer/events/${event.id}`;
   await waitForVersion(request, eventPath, scheduled.version);
-  const organizerView = (await (await request.get(eventPath)).json()) as {
+  const organizerView = (await (await request.get(eventPath, { headers: auth })).json()) as {
     event: { sessions: Array<{ sectors: Array<{ id: string }> }> };
   };
   const sessionSectorId = organizerView.event.sessions[0]?.sectors[0]?.id;

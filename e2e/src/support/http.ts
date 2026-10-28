@@ -5,11 +5,18 @@ export interface ApiResponse<T = unknown> {
   status: number;
   body: T;
   elapsedMs: number;
+  headers: Headers;
+  /** Cada `Set-Cookie` da resposta, inteiro (nome, valor e atributos). */
+  setCookies: string[];
 }
 
 interface RequestOptions {
   body?: unknown;
   idempotencyKey?: string;
+  /** Gera `Authorization: Bearer <token>`. */
+  token?: string;
+  /** Valor do header `Cookie` (ex.: `stubb_refresh=...`). */
+  cookie?: string;
 }
 
 export async function api<T = unknown>(
@@ -21,6 +28,8 @@ export async function api<T = unknown>(
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (options.idempotencyKey !== undefined)
     headers[IDEMPOTENCY_KEY_HEADER] = options.idempotencyKey;
+  if (options.token !== undefined) headers.Authorization = `Bearer ${options.token}`;
+  if (options.cookie !== undefined) headers.Cookie = options.cookie;
   const startedAt = performance.now();
   const response = await fetch(`${env.BASE_URL}${path}`, {
     method,
@@ -33,9 +42,15 @@ export async function api<T = unknown>(
   try {
     body = JSON.parse(text);
   } catch {
-    // corpo não JSON (ex.: HTML do web): devolve o texto
+    // corpo não JSON (ex.: HTML do web, 204 vazio): devolve o texto
   }
-  return { status: response.status, body: body as T, elapsedMs };
+  return {
+    status: response.status,
+    body: body as T,
+    elapsedMs,
+    headers: response.headers,
+    setCookies: response.headers.getSetCookie(),
+  };
 }
 
 export async function fetchText(path: string): Promise<{ status: number; text: string }> {

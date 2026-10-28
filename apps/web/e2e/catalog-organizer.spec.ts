@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { expect, test } from '@playwright/test';
+import { SEED_ORGANIZER, loginViaUi } from './identity-support';
 
 // A projeção é assíncrona: toda espera pelo read model usa o prazo longo.
 const PROJECTION = { timeout: 15_000 };
@@ -14,6 +15,9 @@ test('produtor cadastra local e evento, publica a sessão e a encontra na vitrin
   const salesDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const [year, month, day] = startDate.split('-');
   const sessionName = `Sessão de ${day}/${month}/${year} 20:00`;
+
+  // O produtor seed do Identity assume a área do produtor.
+  await loginViaUi(page, SEED_ORGANIZER);
 
   // Local com uma pista e um setor marcado.
   await page.goto('/produtor/locais/novo');

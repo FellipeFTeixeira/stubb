@@ -33,6 +33,7 @@ import {
 } from '../support/catalog.ts';
 import { query } from '../support/db.ts';
 import { api } from '../support/http.ts';
+import { organizerToken } from '../support/identity.ts';
 import { collectMessages } from '../support/kafka.ts';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -133,7 +134,7 @@ describe('catalog via gateway', () => {
 
     // O local aparece nas leituras do produtor.
     const venues = ListVenuesResponseSchema.parse(
-      (await api('GET', catalogRoutes.organizerVenues)).body,
+      (await api('GET', catalogRoutes.organizerVenues, { token: await organizerToken() })).body,
     );
     expect(venues.items.map((v) => v.id)).toContain(venue.id);
     const venueView = GetVenueResponseSchema.parse(await readVenueAt(venue.id, venue.version));
@@ -167,7 +168,11 @@ describe('catalog via gateway', () => {
     const gone = await api('GET', catalogRoutes.event(draft.id));
     expect(gone.status).toBe(404);
     const mine = ListOrganizerEventsResponseSchema.parse(
-      (await api('GET', `${catalogRoutes.organizerEvents}?pageSize=48`)).body,
+      (
+        await api('GET', `${catalogRoutes.organizerEvents}?pageSize=48`, {
+          token: await organizerToken(),
+        })
+      ).body,
     );
     expect(mine.items.map((item) => item.id)).not.toContain(draft.id);
     expect(mine.items.map((item) => item.id)).toContain(event.id);
@@ -233,7 +238,10 @@ describe('catalog via gateway', () => {
     expect(mismatch.status).toBe(422);
     expect(DomainErrorResponseSchema.parse(mismatch.body).code).toBe('IDEMPOTENCY_KEY_MISMATCH');
 
-    const noKey = await api('PATCH', catalogRoutes.event(event.id), { body });
+    const noKey = await api('PATCH', catalogRoutes.event(event.id), {
+      body,
+      token: await organizerToken(),
+    });
     expect(noKey.status).toBe(400);
     expect(DomainErrorResponseSchema.parse(noKey.body).code).toBe('IDEMPOTENCY_KEY_INVALID');
 

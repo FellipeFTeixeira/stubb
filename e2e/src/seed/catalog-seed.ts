@@ -7,6 +7,7 @@ import {
 } from '@stubb/contracts';
 import { accept, readOrganizerEventAt, readVenueAt, sessionSectorIds } from '../support/catalog.ts';
 import { api } from '../support/http.ts';
+import { organizerToken } from '../support/identity.ts';
 
 type TimeZone = (typeof BRAZIL_TIME_ZONES)[number];
 
@@ -200,8 +201,12 @@ function instantAt(
 
 async function listAllOrganizerTitles(): Promise<string[]> {
   const titles: string[] = [];
+  // As leituras e commands do seed rodam como o produtor seed (dono dos dados de demonstração).
+  const token = await organizerToken();
   for (let page = 1; ; page += 1) {
-    const res = await api('GET', `${catalogRoutes.organizerEvents}?page=${page}&pageSize=48`);
+    const res = await api('GET', `${catalogRoutes.organizerEvents}?page=${page}&pageSize=48`, {
+      token,
+    });
     if (res.status !== 200) throw new Error(`GET organizer/events → ${res.status}`);
     const parsed = ListOrganizerEventsResponseSchema.parse(res.body);
     titles.push(...parsed.items.map((item) => item.title));
